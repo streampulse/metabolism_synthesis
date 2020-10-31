@@ -68,10 +68,6 @@ fnet_full = Reduce(bind_rows, fnet_list) %>%
 
 fnet_site = fnet_full %>%
     select(sitecode, GPP, ER, DOY, Year) %>%
-    mutate(GPP = case_when(GPP < 0 ~ 0, #CHECK: correct impossible metab vals
-                           TRUE ~ GPP),
-           ER = case_when(ER > 0 ~ 0,
-                          TRUE ~ ER)) %>%
     group_by(sitecode, Year) %>%
     summarize(GPP_ann_sum = sum(GPP, na.rm = TRUE),
               ER_ann_sum = sum(ER, na.rm = TRUE)) %>%
@@ -83,10 +79,10 @@ fnet_site = fnet_full %>%
     arrange(sitecode) %>%
     mutate(NEP_site_mean = GPP_site_mean + ER_site_mean)
 
-#compare the two summaries (CHECK: these should be identical.
+#compare the two summaries (CHECK: should these be identical?
 #   FLUXNET_annual_compiled.rds and FLUXNET_filtered.rds don't produce the
-#   same result when summarized by site, even if you comment modifying lines above.
-#   maybe FLUXNET_annual_compiled.rds wasn't gapfiled?)
+#   same result when summarized by site.
+#   maybe FLUXNET_annual_compiled.rds wasn't gapfilled?)
 head(fnet_site, 3)
 head(fnet_site_2, 3)
 
@@ -358,10 +354,6 @@ dir.create('figures/probdens', showWarnings = FALSE)
 
 fnet_lips = fnet_full %>%
     select(sitecode, GPP, ER, DOY, Year) %>%
-    mutate(GPP = case_when(GPP < 0 ~ 0, #CHECK: correct impossible metab vals
-                           TRUE ~ GPP),
-           ER = case_when(ER > 0 ~ 0,
-                          TRUE ~ ER)) %>%
     group_by(sitecode, DOY) %>%
     summarize(GPP = mean(GPP, na.rm=TRUE), #average metab by day across years
               ER = mean(ER, na.rm=TRUE)) %>%
@@ -373,9 +365,8 @@ fnet_lips = fnet_full %>%
 
 sp_lips = sp_full %>%
     # filter( #remove spurious model results
-    #     ER_K600_R2 < 0.6,#) %>% #CHECK: shouldn't we do something like this?
-    #Bob would say so.
-    #     max_K600 < 100) %>% #CHECK: this too
+    #     ER_K600_R2 < 0.6,#) %>%
+    #     max_K600 < 100) %>%
     mutate(GPP_C_filled = case_when(GPP_C_filled < 0 ~ 0,
                                     TRUE ~ GPP_C_filled),
            ER_C_filled = case_when(ER_C_filled > 0 ~ 0,

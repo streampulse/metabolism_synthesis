@@ -68,10 +68,6 @@ fnet_full = Reduce(bind_rows, fnet_list) %>%
 
 fnet_site = fnet_full %>%
     select(sitecode, GPP, ER, DOY, Year) %>%
-    mutate(GPP = case_when(GPP < 0 ~ 0, #CHECK: correct impossible metab vals
-                           TRUE ~ GPP),
-           ER = case_when(ER > 0 ~ 0,
-                          TRUE ~ ER)) %>%
     group_by(sitecode, Year) %>%
     summarize(GPP_ann_sum = sum(GPP, na.rm = TRUE),
               ER_ann_sum = sum(ER, na.rm = TRUE)) %>%
@@ -83,10 +79,10 @@ fnet_site = fnet_full %>%
     arrange(sitecode) %>%
     mutate(NEP_site_mean = GPP_site_mean + ER_site_mean)
 
-#compare the two summaries (CHECK: these should be identical.
+#compare the two summaries (CHECK: should these be identical?
 #   FLUXNET_annual_compiled.rds and FLUXNET_filtered.rds don't produce the
-#   same result when summarized by site, even if you comment modifying lines above.
-#   maybe FLUXNET_annual_compiled.rds wasn't gapfiled?)
+#   same result when summarized by site.
+#   maybe FLUXNET_annual_compiled.rds wasn't gapfilled?)
 head(fnet_site, 3)
 head(fnet_site_2, 3)
 
@@ -358,10 +354,6 @@ dir.create('figures/probdens', showWarnings = FALSE)
 
 fnet_lips = fnet_full %>%
     select(sitecode, GPP, ER, DOY, Year) %>%
-    mutate(GPP = case_when(GPP < 0 ~ 0, #CHECK: correct impossible metab vals
-                           TRUE ~ GPP),
-           ER = case_when(ER > 0 ~ 0,
-                          TRUE ~ ER)) %>%
     group_by(sitecode, DOY) %>%
     summarize(GPP = mean(GPP, na.rm=TRUE), #average metab by day across years
               ER = mean(ER, na.rm=TRUE)) %>%
@@ -373,9 +365,8 @@ fnet_lips = fnet_full %>%
 
 sp_lips = sp_full %>%
     # filter( #remove spurious model results
-    #     ER_K600_R2 < 0.6,#) %>% #CHECK: shouldn't we do something like this?
-    #Bob would say so.
-    #     max_K600 < 100) %>% #CHECK: this too
+    #     ER_K600_R2 < 0.6,#) %>%
+    #     max_K600 < 100) %>%
     mutate(GPP_C_filled = case_when(GPP_C_filled < 0 ~ 0,
                                     TRUE ~ GPP_C_filled),
            ER_C_filled = case_when(ER_C_filled > 0 ~ 0,
@@ -586,7 +577,7 @@ lips_plot(quant_filt='Stream_PAR_sum > 0.75', outfile='figures/lips/lips_PAR_75.
 lips_plot(quant_filt='Stream_PAR_sum < 0.25', outfile='figures/lips/lips_PAR_25.jpeg',
           ylims=lips_ylim, wee=TRUE)
 
-# 8: df for emily to build annual rates dist plot ####
+# 8: df for emily to build annual rates dist plot (obsolete?) ####
 
 terr_aq_cumul_metab = sp_site %>%
     mutate(source = 'streampulse') %>%
@@ -736,7 +727,7 @@ bubble_plot(xvar='MOD_ann_NPP', comp='ER_site_mean', logx=TRUE, outfile='figures
 bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=FALSE, outfile='figures/bubble_plots/MODNPP_NEP_linear.jpeg')
 bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=TRUE, outfile='figures/bubble_plots/MODNPP_NEP_log.jpeg')
 
-# 10: export regression dataset ####
+# 10: export regression dataset (needs update) ####
 
 coverage_tb = sp %>%
     group_by(sitecode) %>%
@@ -759,7 +750,7 @@ stats_set = site_data_2 %>%
 write.csv(stats_set, 'export_datasets/streampulse_synthesis_statset.csv',
           row.names=FALSE)
 
-# 11: data for emily to explore ####
+# 11: data for emily to explore (obsolete) ####
 
 #accumulate all site data
 width = readRDS('~/git/streampulse/metab_synthesis/data/lotic_streamlight_params.rds') %>%
