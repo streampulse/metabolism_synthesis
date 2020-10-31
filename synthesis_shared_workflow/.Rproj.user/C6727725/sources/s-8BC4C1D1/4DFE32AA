@@ -1,0 +1,24 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1604158505666.000,
+    "dirty" : true,
+    "encoding" : "",
+    "folds" : "14|11|23|0|\n24|69|28|0|\n92|39|134|0|\n141|76|213|0|\n214|45|352|0|\n353|60|587|0|\n395|32|537|0|\n539|34|560|0|\n588|62|604|0|\n605|29|737|0|\n609|56|723|0|\n738|47|760|0|\n761|43|876|0|\n877|8|891|0|\n",
+    "hash" : "0",
+    "id" : "4DFE32AA",
+    "lastKnownWriteTime" : 1604166389,
+    "last_content_update" : 1604167748266,
+    "path" : "~/git/streampulse/metab_synthesis_2/make_plots_etc.R",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "12,45",
+        "marks" : "h:0,0",
+        "scrollLine" : "3",
+        "tempName" : "Untitled3"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
