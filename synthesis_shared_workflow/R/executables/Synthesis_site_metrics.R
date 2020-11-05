@@ -5,11 +5,9 @@
 #statistics for GPP, ER, water temperature, discharge, PAR, and LAI 
 #Created 9/14/2020
 #===============================================================================
-library("here")
-
 Synthesis_site_metrics <- function(){
-#Reading in my generic maginificent 7 function
-  source("C:/research/postdoc research/river rhythms/final submitted/R scripts/Magnificent seven.R")
+#Reading in my generic magnificent 7 functions
+  source(here::here("R", "functions", "magnificent_seven.R"))
         
 #-------------------------------------------------
 #Function to aid applying the mag7_fun to multiple variables
@@ -127,20 +125,21 @@ Synthesis_site_metrics <- function(){
 #Calculate the site metrics, bind with MODIS NPP and final formatting   
 #-------------------------------------------------
   metrics_compiled <- plyr::ldply(
-    names(readRDS(here("output", "synthesis_gap_filled.rds"))), 
+    names(readRDS(here::here("output", "synthesis_gap_filled.rds"))), 
     synthesis_summary_calc, 
-    gap_filled =  readRDS(here("output", "synthesis_gap_filled.rds")) 
+    gap_filled =  readRDS(here::here("output", "synthesis_gap_filled.rds")) 
   )
   
   #Calculate the mean annual MODIS NPP (g C m-2 y-1)
-    MODIS_annual_NPP <- readRDS(here("output", "MODIS_annual_NPP.rds"))
+    MODIS_annual_NPP <- readRDS(here::here("output", "MODIS_annual_NPP.rds"))
     mean_annual_NPP <- aggregate(MOD_ann_NPP ~ Site_ID, data = MODIS_annual_NPP, FUN = mean)
       
   #Merge the NPP data with the other site metrics
     final <- merge(metrics_compiled, mean_annual_NPP, by = "Site_ID", all.x = TRUE)
     
   #Export the output
-    saveRDS(final, here("output", "synthesis_site_metrics.rds"))  
+    saveRDS(final, here::here("output", "synthesis_site_metrics.rds"))  
+    write.csv(final, here::here("output", "synthesis_site_metrics.csv"), row.names = FALSE, quote = FALSE)  
   
 } #End Synthesis_site_metrics wrapper
 
