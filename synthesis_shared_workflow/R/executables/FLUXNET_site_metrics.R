@@ -7,7 +7,6 @@ FLUXNET_site_metrics <- function(){
   annual_compiled <- readRDS(here::here("output", "FLUXNET_annual_compiled.rds"))
 
 #Read in the filtered FLUXNET data
-  # filtered <- readRDS("C:/research/postdoc research/metab_synthesis/output/FLUXNET_filtered.rds")
   filtered <- readRDS(here::here("output", "FLUXNET_filtered.rds"))
 
 #-------------------------------------------------
@@ -53,6 +52,7 @@ FLUXNET_site_metrics <- function(){
     
   #Export the output
     saveRDS(metrics_compiled, here::here("output", "FLUXNET_site_metrics.rds"))
+    write.csv(metrics_compiled, here::here("output", "FLUXNET_site_metrics.csv"), row.names = FALSE, quote = FALSE)
   
 } #End FLUXNET_site_metrics wrapper
 
