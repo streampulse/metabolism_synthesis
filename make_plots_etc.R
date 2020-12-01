@@ -85,6 +85,8 @@ fnet_site = fnet_full %>%
 #   maybe FLUXNET_annual_compiled.rds wasn't gapfilled?)
 head(fnet_site, 3)
 head(fnet_site_2, 3)
+readRDS('synthesis_shared_workflow/output/FLUXNET_site_metrics.rds') %>%
+    head(3)
 
 # 3: load and prepare streampulse data ####
 sp_list = readRDS('synthesis_shared_workflow/output/synthesis_gap_filled.rds')
@@ -112,10 +114,6 @@ sp_site = sp_full %>%
     #     ER_K600_R2 < 0.6,#) %>% #CHECK: shouldn't we do something like this?
                                   #Bob would say so.
     #     max_K600 < 100) %>% #CHECK: this too
-    mutate(GPP_C_filled = case_when(GPP_C_filled < 0 ~ 0, #CHECK: correct impossible metab vals
-                                    TRUE ~ GPP_C_filled),
-           ER_C_filled = case_when(ER_C_filled > 0 ~ 0,
-                                   TRUE ~ ER_C_filled)) %>%
     select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled) %>%
     group_by(sitecode, Year) %>%
     summarize(GPP_ann_sum = sum(GPP_C_filled, na.rm = TRUE),
@@ -129,11 +127,26 @@ sp_site = sp_full %>%
     mutate(NEP_site_mean = GPP_site_mean + ER_site_mean) %>%
     left_join(site_data_1, by = 'sitecode') #include site data
 
-# 4: split sites by coverage (obsolete) ####
-sp_high_cov_sites = sp$sitecode[sp$coverage >= 0.8]
-sp_high_cov_bool = sp$sitecode %in% sp_high_cov_sites
-fnet_high_cov_sites = fnet$sitecode[fnet$coverage >= 0.8]
-fnet_high_cov_bool = fnet$sitecode %in% fnet_high_cov_sites
+# 4: split sites by coverage ####
+
+sp_coverage = tapply(sp_full$GPP_C, sp_full$sitecode, function(x){
+    round(sum(! is.na(x)) / length(x), 2)
+})
+
+fnet_coverage = tapply(fnet_full$GPP, fnet_full$sitecode, function(x){
+    round(sum(! is.na(x)) / length(x), 2)
+})
+
+sp_high_cov_sites = names(which(sp_coverage >= 0.8))
+sp_high_cov_bool = sp_site$sitecode %in% sp_high_cov_sites
+
+fnet_high_cov_sites = names(which(fnet_coverage >= 0.8))
+fnet_high_cov_bool = fnet_site$sitecode %in% fnet_high_cov_sites
+
+# sp_high_cov_sites = sp$sitecode[sp$coverage >= 0.8]
+# sp_high_cov_bool = sp$sitecode %in% sp_high_cov_sites
+# fnet_high_cov_sites = fnet$sitecode[fnet$coverage >= 0.8]
+# fnet_high_cov_bool = fnet$sitecode %in% fnet_high_cov_sites
 
 # 5: generate site data that will be used for stats (skip if only plotting) ####
 
@@ -222,10 +235,10 @@ log_er_fnet = log(fnet_site$ER_site_mean * -1) * -1
 log_gpp_sp = log(sp_site$GPP_site_mean)
 log_er_sp = log(sp_site$ER_site_mean * -1) * -1
 
-plot(log_gpp_fnet,
-     log_er_fnet, col=alpha(fnetcolor, alpha=0.5),
-# plot(log_gpp_fnet[fnet_high_cov_bool],
-#      log_er_fnet[fnet_high_cov_bool], col=alpha(fnetcolor, alpha=0.5),
+# plot(log_gpp_fnet,
+#      log_er_fnet, col=alpha(fnetcolor, alpha=0.5),
+plot(log_gpp_fnet[fnet_high_cov_bool],
+     log_er_fnet[fnet_high_cov_bool], col=alpha(fnetcolor, alpha=0.5),
      xlab='', ylab='', bg=alpha(fnetcolor, alpha=0.5),
      cex=1.5, cex.lab=axis_cex, cex.axis=axis_cex, ylim=-log(c(10000, 1)),
      pch=21, yaxt='n', xaxt='n', xlim=log(c(.1, 10000)), lwd=2)
@@ -233,14 +246,14 @@ mtext(expression(paste("Cumulative GPP (gC"~"m"^"-2"*" y"^"-1"*')')),
       1, line=5, cex=axis_cex)
 mtext(expression(paste("Cumulative ER (gC"~"m"^"-2"*" y"^"-1"*')')),
       2, line=3.5, cex=axis_cex)
-points(log_gpp_sp, log_er_sp, lwd=2,
-       col=alpha(spcolor, alpha=0.5), cex=1.5, pch=21, bg=alpha(spcolor, alpha=0.5))
-# points(log_gpp_sp[! sp_high_cov_bool], log_er_sp[! sp_high_cov_bool], lwd=2,
-#        col=alpha(spcolor, alpha=0.5), cex=1.5, pch=21, bg='transparent')
-# points(log_gpp_fnet[! fnet_high_cov_bool], log_er_fnet[! fnet_high_cov_bool],
-#        col=alpha(fnetcolor, alpha=0.5), cex=1.5, pch=21, bg='transparent', lwd=2)
-# points(log_gpp_sp[sp_high_cov_bool], log_er_sp[sp_high_cov_bool], lwd=2,
+# points(log_gpp_sp, log_er_sp, lwd=2,
 #        col=alpha(spcolor, alpha=0.5), cex=1.5, pch=21, bg=alpha(spcolor, alpha=0.5))
+points(log_gpp_sp[! sp_high_cov_bool], log_er_sp[! sp_high_cov_bool], lwd=2,
+       col=alpha(spcolor, alpha=0.5), cex=1.5, pch=21, bg='transparent')
+points(log_gpp_fnet[! fnet_high_cov_bool], log_er_fnet[! fnet_high_cov_bool],
+       col=alpha(fnetcolor, alpha=0.5), cex=1.5, pch=21, bg='transparent', lwd=2)
+points(log_gpp_sp[sp_high_cov_bool], log_er_sp[sp_high_cov_bool], lwd=2,
+       col=alpha(spcolor, alpha=0.5), cex=1.5, pch=21, bg=alpha(spcolor, alpha=0.5))
 legend('topright', legend=c('FLUXNET', 'StreamPULSE'), pch=21, bty='n', pt.cex=1.5,
        col=c(alpha(fnetcolor, alpha=0.5), alpha(spcolor, alpha=0.5)), pt.lwd=2,
        pt.bg=c(alpha(fnetcolor, alpha=0.5), alpha(spcolor, alpha=0.5)), x.intersp=2)
