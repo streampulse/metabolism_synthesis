@@ -2,15 +2,12 @@
 #Calculate summary metrics for FLUXNET sites
 #Created 2/6/2020
 #===============================================================================
-library("here")
-
 FLUXNET_site_metrics <- function(){
 #Read in the compiled annual FLUXNET data
-  annual_compiled <- readRDS(here("output", "FLUXNET_annual_compiled.rds"))
+  annual_compiled <- readRDS(here::here("output", "FLUXNET_annual_compiled.rds"))
 
 #Read in the filtered FLUXNET data
-  # filtered <- readRDS("C:/research/postdoc research/metab_synthesis/output/FLUXNET_filtered.rds")
-  filtered <- readRDS(here("output", "FLUXNET_filtered.rds"))
+  filtered <- readRDS(here::here("output", "FLUXNET_filtered.rds"))
 
 #-------------------------------------------------
 #Define a function to calculate metrics for FLUXNET sites
@@ -54,7 +51,8 @@ FLUXNET_site_metrics <- function(){
     metrics_compiled <- plyr::ldply(names(filtered), FLUXNET_calc)
     
   #Export the output
-    saveRDS(metrics_compiled, here("output", "FLUXNET_site_metrics.rds"))
+    saveRDS(metrics_compiled, here::here("output", "FLUXNET_site_metrics.rds"))
+    write.csv(metrics_compiled, here::here("output", "FLUXNET_site_metrics.csv"), row.names = FALSE, quote = FALSE)
   
 } #End FLUXNET_site_metrics wrapper
 

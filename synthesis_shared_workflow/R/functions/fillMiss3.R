@@ -89,6 +89,13 @@ fillMiss3 <- function(dataset, var, block = 30, pmiss = 40, model = "trend",
           #Perform smoothing (if chosen)
             if(smooth) fit <- tsSmooth(my.struct) else fit <- fitted(my.struct)
 
+          #Replace fit values that exceed the minimum and maximum values for the dataset
+            data_min <- min(dataset[, var], na.rm = TRUE)
+            data_max <- max(dataset[, var], na.rm = TRUE)            
+            
+            fit[fit[, 1] < data_min, 1] <- data_min
+            fit[fit[, 1] > data_max, 1] <- data_max
+            
           #-------------------------------------------------
           #Plotting
           #-------------------------------------------------

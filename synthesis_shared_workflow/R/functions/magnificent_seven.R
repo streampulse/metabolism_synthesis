@@ -83,10 +83,10 @@
     #Calculating L-moments 
       l_mom <- lmomco::lmom.ub(timeseries[, var])
       
-      lam1 <- round(lmomco::l_mom$L1, digits = 2) #Mean
-      tau2 <- round(lmomco::l_mom$LCV, digits = 2) #Coefficient of L-variation
-      tau3 <- round(lmomco::l_mom$TAU3, digits = 2) #L-skew
-      tau4 <- round(lmomco::l_mom$TAU4, digits = 2) #L-kurtosis
+      lam1 <- round(l_mom$L1, digits = 2) #Mean
+      tau2 <- round(l_mom$LCV, digits = 2) #Coefficient of L-variation
+      tau3 <- round(l_mom$TAU3, digits = 2) #L-skew
+      tau4 <- round(l_mom$TAU4, digits = 2) #L-kurtosis
       
     #Calculating phase and amplitude
       seasonality <- get_seasonality(timeseries, var, standardize)
