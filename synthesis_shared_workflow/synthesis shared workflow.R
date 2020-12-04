@@ -59,8 +59,11 @@ library("here")
       metab_rds = readRDS(here("output", "FLUXNET_standardized.rds"))
     )  
       
+  #Remove FLUXNET tier-2 sites, that grant data producers collaboration rights
+    FLUXNET_filtered_final <- FLUXNET_filtered[!names(FLUXNET_filtered) %in% c("RU-Sam", "RU-SkP", "RU-Tks", "RU-Vrk", "SE-St1", "ZA-Kru")]
+        
   #Save the output
-    saveRDS(FLUXNET_filtered, here("output", "FLUXNET_filtered.rds"))      
+    saveRDS(FLUXNET_filtered_final, here("output", "FLUXNET_filtered.rds"))      
 
 #-------------------------------------------------
 #2. Calculate a series of data metrics for each site     
