@@ -124,16 +124,44 @@ Synthesis_site_metrics <- function(){
 #-------------------------------------------------
 #Calculate the site metrics, bind with MODIS NPP and final formatting   
 #-------------------------------------------------
-  metrics_compiled <- plyr::ldply(
-    names(readRDS(here::here("output", "synthesis_gap_filled.rds"))), 
-    synthesis_summary_calc, 
-    gap_filled =  readRDS(here::here("output", "synthesis_gap_filled.rds")) 
-  )
+  #Read in the gap-filled data
+    gap_filled <- readRDS(here::here("output", "synthesis_gap_filled.rds"))
   
-  #Calculate the mean annual MODIS NPP (g C m-2 y-1)
+  #Calculate the metrics
+    metrics_compiled <- plyr::ldply(
+      names(gap_filled), 
+      synthesis_summary_calc, 
+      gap_filled = gap_filled
+    )
+  
+  #Read in the annual MODIS NPP (g C m-2 y-1)
     MODIS_annual_NPP <- readRDS(here::here("output", "MODIS_annual_NPP.rds"))
-    mean_annual_NPP <- aggregate(MOD_ann_NPP ~ Site_ID, data = MODIS_annual_NPP, FUN = mean)
-      
+    
+  #Calculate the mean annual MODIS NPP (g C m-2 y-1)  
+    calc_mean_NPP <- function(Site_ID, gap_filled, npp_data){
+      #Get the site of interest
+        years <- unique((gap_filled[[Site_ID]][, "Year"]))
+        
+      #Subset for the site and filtered years
+        mod_sub <- npp_data[npp_data[, "Site_ID"] %in% Site_ID & npp_data[, "Year"] %in% years, ]
+        
+      #Get the final output
+        final <- setNames(data.frame(
+          Site_ID,
+          mean(mod_sub[, "MOD_ann_NPP"], na.rm = TRUE)
+        ), c("Site_ID", "MOD_ann_NPP"))
+        
+      return(final)
+       
+    } #End calc_mean_NPP function
+    
+    mean_annual_NPP <- plyr::ldply(
+      names(gap_filled),
+      calc_mean_NPP,
+      gap_filled = gap_filled,
+      npp_data = MODIS_annual_NPP
+    )
+   
   #Merge the NPP data with the other site metrics
     final <- merge(metrics_compiled, mean_annual_NPP, by = "Site_ID", all.x = TRUE)
     

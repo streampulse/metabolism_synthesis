@@ -16,8 +16,11 @@ FLUXNET_site_metrics <- function(){
     #Get annual estimates for the site of interest
       SOI_annual <- annual_compiled[[Site_ID]]
       
+    #Subset the annual data for the filtered years
+      annual_sub <- SOI_annual[SOI_annual[, "Year"] %in% unique(filtered[[Site_ID]][, "Year"]), ]
+      
     #Calculate mean annual rates
-      mean_annual <- colMeans(SOI_annual[, c("GPP", "ER", "Net")], na.rm = TRUE)
+      mean_annual <- colMeans(annual_sub[, c("GPP", "ER", "Net")], na.rm = TRUE)
       
     #Get the daily data for the site of interest
       SOI_daily <- filtered[[Site_ID]]  
