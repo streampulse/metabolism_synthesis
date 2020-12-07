@@ -109,6 +109,18 @@ for(i in 1:length(sp_list)){
 sp_full = Reduce(bind_rows, sp_list) %>%
     as_tibble()
 
+#here's what we'd lose by filtering wonky model results:
+sp_full %>%
+    filter(ER_K600_R2 >= 0.6 | max_K600 > 100) %>%
+    select(Year, sitecode, ER_K600_R2, max_K600) %>%
+    group_by(sitecode, Year) %>%
+    summarize(across(everything(), first),
+              .groups = 'drop') %>%
+    arrange(sitecode, Year) %>%
+    mutate(across(all_of(c('ER_K600_R2', 'max_K600')),
+                  ~round(., 2))) %>%
+    as.data.frame()
+
 sp_site = sp_full %>%
     # filter( #remove spurious model results
     #     ER_K600_R2 < 0.6,#) %>% #CHECK: shouldn't we do something like this?
