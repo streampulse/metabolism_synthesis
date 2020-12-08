@@ -27,7 +27,7 @@ site_data_1 = readRDS('synthesis_shared_workflow/output/synthesis_site_metrics.r
     as_tibble() %>%
     select(sitecode = Site_ID, Stream_PAR_sum, Disch_ar1, MOD_ann_NPP)
 
-# 2: load and prepare fluxnet data ####
+# OBSOLETE: load and prepare fluxnet data (highlighting discrepancy) ####
 
 fnet_diag = readRDS('synthesis_shared_workflow/output/FLUXNET_yearly_diagnostics.rds') %>%
     as_tibble()
@@ -86,11 +86,66 @@ fnet_site = fnet_full %>%
 head(fnet_site, 3)
 head(fnet_site_2, 3)
 readRDS('synthesis_shared_workflow/output/FLUXNET_site_metrics.rds') %>%
-    head(3)
+    as_tibble()
+
+# 2: load and prepare fluxnet data ####
+
+fnet_diag = readRDS('synthesis_shared_workflow/output/FLUXNET_yearly_diagnostics.rds') %>%
+    as_tibble()
+
+restricted_use_sites = c("RU-Sam", "RU-SkP", "RU-Tks", "RU-Vrk", "SE-St1", "ZA-Kru")
+
+#summarize by site, starting with a dataset that's summarized by site-year
+fnet_ann = readRDS('synthesis_shared_workflow/output/FLUXNET_annual_compiled.rds')
+fnet_names = names(fnet_ann)
+
+for(i in 1:length(fnet_ann)){
+    fnet_ann[[i]]$sitecode = fnet_names[i]
+}
+
+fnet_ann = fnet_ann[! fnet_names %in% restricted_use_sites]
+
+fnet_full = Reduce(bind_rows, fnet_ann) %>%
+    as_tibble()
+
+fnet_site = fnet_full %>%
+    select(sitecode, GPP, ER, Net, Year) %>%
+    left_join(fnet_diag, by = c('sitecode' = 'Site_ID', 'Year')) %>%
+    filter(num_days / 365 >= 0.6) %>% #coverage filter
+    group_by(sitecode) %>%
+    summarize(GPP = mean(GPP, na.rm = TRUE),
+              ER = mean(ER, na.rm = TRUE)) %>%
+    ungroup() %>%
+    arrange(sitecode) %>%
+    rename(GPP_site_mean = GPP, ER_site_mean = ER) %>%
+    mutate(NEP_site_mean = GPP_site_mean + ER_site_mean)
+
+#summarize by DOY for lips plots
+fnet_byday_list = readRDS('synthesis_shared_workflow/output/FLUXNET_filtered.rds')
+
+fnet_byday_names = names(fnet_byday_list)
+for(i in 1:length(fnet_byday_list)){
+    fnet_byday_list[[i]]$sitecode = fnet_byday_names[i]
+}
+
+fnet_byday_full = Reduce(bind_rows, fnet_byday_list) %>%
+    as_tibble()
+
+fnet_lips = fnet_byday_full %>%
+    select(sitecode, GPP, ER, DOY, Year) %>%
+    group_by(sitecode, DOY) %>%
+    summarize(GPP = mean(GPP, na.rm=TRUE), #average metab by day across years
+              ER = mean(ER, na.rm=TRUE)) %>%
+    # nyear = length(unique(Year))) %>%
+    ungroup() %>%
+    arrange(sitecode, DOY) %>%
+    rename(GPP_C_filled = GPP, ER_C_filled = ER) %>%
+    mutate(NEP_C_filled = GPP_C_filled + ER_C_filled)
 
 # 3: load and prepare streampulse data ####
 sp_list = readRDS('synthesis_shared_workflow/output/synthesis_gap_filled.rds')
 
+#summarize by site
 sp_names = names(sp_list)
 for(i in 1:length(sp_list)){
 
@@ -109,23 +164,10 @@ for(i in 1:length(sp_list)){
 sp_full = Reduce(bind_rows, sp_list) %>%
     as_tibble()
 
-#here's what we'd lose by filtering wonky model results:
-sp_full %>%
-    filter(ER_K600_R2 >= 0.6 | max_K600 > 100) %>%
-    select(Year, sitecode, ER_K600_R2, max_K600) %>%
-    group_by(sitecode, Year) %>%
-    summarize(across(everything(), first),
-              .groups = 'drop') %>%
-    arrange(sitecode, Year) %>%
-    mutate(across(all_of(c('ER_K600_R2', 'max_K600')),
-                  ~round(., 2))) %>%
-    as.data.frame()
-
 sp_site = sp_full %>%
-    # filter( #remove spurious model results
-    #     ER_K600_R2 < 0.6,#) %>% #CHECK: shouldn't we do something like this?
-                                  #Bob would say so.
-    #     max_K600 < 100) %>% #CHECK: this too
+    filter( #remove spurious model results
+        ER_K600_R2 < 0.6,
+        max_K600 < 100) %>% #CHECK: this too
     select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled) %>%
     group_by(sitecode, Year) %>%
     summarize(GPP_ann_sum = sum(GPP_C_filled, na.rm = TRUE),
@@ -138,6 +180,67 @@ sp_site = sp_full %>%
     arrange(sitecode) %>%
     mutate(NEP_site_mean = GPP_site_mean + ER_site_mean) %>%
     left_join(site_data_1, by = 'sitecode') #include site data
+
+#summarize by DOY for lips plots
+sp_lips = sp_full %>%
+    filter( #remove spurious model results
+        ER_K600_R2 < 0.6,#) %>%
+        max_K600 < 100) %>%
+    mutate(GPP_C_filled = case_when(GPP_C_filled < 0 ~ 0,
+                                    TRUE ~ GPP_C_filled),
+           ER_C_filled = case_when(ER_C_filled > 0 ~ 0,
+                                   TRUE ~ ER_C_filled)) %>%
+    select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled) %>%
+    group_by(sitecode, DOY) %>%
+    summarize(GPP_C_filled = mean(GPP_C_filled, na.rm=TRUE), #average metab by day across years
+              ER_C_filled = mean(ER_C_filled, na.rm=TRUE)) %>%
+    # nyear = length(unique(Year))) %>%
+    ungroup() %>%
+    arrange(sitecode, DOY) %>%
+    mutate(NEP_C_filled = GPP_C_filled + ER_C_filled) %>%
+    left_join(site_data_1, by = 'sitecode') #include site data
+
+# TESTING ONLY: Er * K600 R^2 discrepancy ####
+
+source('synthesis_shared_workflow/R/functions/filter_metab.R')
+synthesis_filtered <- filter_metab(
+    diag = readRDS("synthesis_shared_workflow/output/lotic_yearly_diagnostics.rds"),
+    filters = paste0(paste0("num_days >= ", 365 * 0.6), " & ER_K < 0.6", " & K600_max < 100"),
+    metab_rds = readRDS("synthesis_shared_workflow/output/lotic_standardized_metabolism.rds"),
+    has_NLDAS = TRUE,
+    has_MODIS_NPP = TRUE
+)
+sp_names_2 = names(synthesis_filtered)
+for(i in 1:length(synthesis_filtered)){
+    synthesis_filtered[[i]]$sitecode = sp_names[i]
+    synthesis_filtered[[i]] = synthesis_filtered[[i]] %>%
+        group_by(Year) %>%
+        mutate(
+            ER_K600_R2XX = erk_r2(ER, K600),
+            max_K600XX = max(K600, na.rm = TRUE)) %>%
+        ungroup()
+}
+sp_full_2 = Reduce(bind_rows, synthesis_filtered) %>%
+    as_tibble()
+select(sp_full, sitecode, Year, ER_K600_R2, max_K600) %>% distinct(sitecode, Year, .keep_all = T)
+select(sp_full_2, sitecode, Year, ER_K600_R2XX, max_K600XX) %>% distinct(sitecode, Year, .keep_all = T)
+distinct(sp_full, sitecode, Year) %>% group_by(sitecode) %>% summarize(n()) %>% as.data.frame()
+distinct(sp_full_2, sitecode, Year) %>% group_by(sitecode) %>% summarize(n()) %>% as.data.frame()
+group_by(sp_full_2, sitecode) %>% summarize(length(unique(ER_K600_R2XX)))
+group_by(sp_full, sitecode) %>% summarize(length(unique(ER_K600_R2)))
+lyd = readRDS("synthesis_shared_workflow/output/lotic_yearly_diagnostics.rds") %>% as_tibble()
+
+#here's what we'd lose by filtering wonky model results:
+sp_full %>%
+    filter(ER_K600_R2 >= 0.6 | max_K600 > 100) %>%
+    select(Year, sitecode, ER_K600_R2, max_K600) %>%
+    group_by(sitecode, Year) %>%
+    summarize(across(everything(), first),
+              .groups = 'drop') %>%
+    arrange(sitecode, Year) %>%
+    mutate(across(all_of(c('ER_K600_R2', 'max_K600')),
+                  ~round(., 2))) %>%
+    as.data.frame()
 
 # 4: split sites by coverage ####
 
@@ -160,7 +263,7 @@ fnet_high_cov_bool = fnet_site$sitecode %in% fnet_high_cov_sites
 # fnet_high_cov_sites = fnet$sitecode[fnet$coverage >= 0.8]
 # fnet_high_cov_bool = fnet$sitecode %in% fnet_high_cov_sites
 
-# 5: generate site data that will be used for stats (skip if only plotting) ####
+# 5: (skip if only plotting) generate site data that will be used for stats ####
 
 #skip to bottom of this section and read in
 
@@ -247,13 +350,17 @@ log_er_fnet = log(fnet_site$ER_site_mean * -1) * -1
 log_gpp_sp = log(sp_site$GPP_site_mean)
 log_er_sp = log(sp_site$ER_site_mean * -1) * -1
 
+gpptck = c(1, 10, 100, 1000, 10000)
+# gpptck = c(0.1, 1, 10, 100, 1000, 10000)
+ertck = rev(c(10000, 1000, 100, 10, 1))
+
 # plot(log_gpp_fnet,
 #      log_er_fnet, col=alpha(fnetcolor, alpha=0.5),
 plot(log_gpp_fnet[fnet_high_cov_bool],
      log_er_fnet[fnet_high_cov_bool], col=alpha(fnetcolor, alpha=0.5),
      xlab='', ylab='', bg=alpha(fnetcolor, alpha=0.5),
-     cex=1.5, cex.lab=axis_cex, cex.axis=axis_cex, ylim=-log(c(10000, 1)),
-     pch=21, yaxt='n', xaxt='n', xlim=log(c(.1, 10000)), lwd=2)
+     cex=1.5, cex.lab=axis_cex, cex.axis=axis_cex, ylim=-log(rev(range(ertck))),
+     pch=21, yaxt='n', xaxt='n', xlim=log(range(gpptck)), lwd=2)
 mtext(expression(paste("Cumulative GPP (gC"~"m"^"-2"*" y"^"-1"*')')),
       1, line=5, cex=axis_cex)
 mtext(expression(paste("Cumulative ER (gC"~"m"^"-2"*" y"^"-1"*')')),
@@ -279,10 +386,8 @@ all_er = c(fnet_site$ER_site_mean, sp_site$ER_site_mean)
 all_er[all_er >= 0] = NA
 errng = range(all_er, na.rm=TRUE)
 
-gpptck = c(0.1, 1, 10, 100, 1000, 10000)
 gpptck_log = log(gpptck)
 axis(1, at=gpptck_log, labels=gpptck, cex.axis=axis_cex, padj=0.4)
-ertck = rev(c(10000, 1000, 100, 10, 1, 0.1))
 ertck_log = log(ertck) * -1
 axis(2, at=ertck_log, labels=ertck * -1, cex.axis=axis_cex, padj=0.2)
 
@@ -376,35 +481,6 @@ dev.off()
 
 dir.create('figures/lips', showWarnings = FALSE)
 dir.create('figures/probdens', showWarnings = FALSE)
-
-fnet_lips = fnet_full %>%
-    select(sitecode, GPP, ER, DOY, Year) %>%
-    group_by(sitecode, DOY) %>%
-    summarize(GPP = mean(GPP, na.rm=TRUE), #average metab by day across years
-              ER = mean(ER, na.rm=TRUE)) %>%
-              # nyear = length(unique(Year))) %>%
-    ungroup() %>%
-    arrange(sitecode, DOY) %>%
-    rename(GPP_C_filled = GPP, ER_C_filled = ER) %>%
-    mutate(NEP_C_filled = GPP_C_filled + ER_C_filled)
-
-sp_lips = sp_full %>%
-    # filter( #remove spurious model results
-    #     ER_K600_R2 < 0.6,#) %>%
-    #     max_K600 < 100) %>%
-    mutate(GPP_C_filled = case_when(GPP_C_filled < 0 ~ 0,
-                                    TRUE ~ GPP_C_filled),
-           ER_C_filled = case_when(ER_C_filled > 0 ~ 0,
-                                   TRUE ~ ER_C_filled)) %>%
-    select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled) %>%
-    group_by(sitecode, DOY) %>%
-    summarize(GPP_C_filled = mean(GPP_C_filled, na.rm=TRUE), #average metab by day across years
-              ER_C_filled = mean(ER_C_filled, na.rm=TRUE)) %>%
-    # nyear = length(unique(Year))) %>%
-    ungroup() %>%
-    arrange(sitecode, DOY) %>%
-    mutate(NEP_C_filled = GPP_C_filled + ER_C_filled) %>%
-    left_join(site_data_1, by = 'sitecode') #include site data
 
 axis_cex = 2.4 #applies to labels and tick values
 
@@ -602,7 +678,7 @@ lips_plot(quant_filt='Stream_PAR_sum > 0.75', outfile='figures/lips/lips_PAR_75.
 lips_plot(quant_filt='Stream_PAR_sum < 0.25', outfile='figures/lips/lips_PAR_25.jpeg',
           ylims=lips_ylim, wee=TRUE)
 
-# 8: df for emily to build annual rates dist plot (obsolete?) ####
+# OBSOLETE?: df for emily to build annual rates dist plot ####
 
 terr_aq_cumul_metab = sp_site %>%
     mutate(source = 'streampulse') %>%
@@ -775,7 +851,7 @@ stats_set = site_data_2 %>%
 write.csv(stats_set, 'export_datasets/streampulse_synthesis_statset.csv',
           row.names=FALSE)
 
-# 11: data for emily to explore (obsolete) ####
+# OBSOLETE: data for emily to explore ####
 
 #accumulate all site data
 width = readRDS('~/git/streampulse/metab_synthesis/data/lotic_streamlight_params.rds') %>%
