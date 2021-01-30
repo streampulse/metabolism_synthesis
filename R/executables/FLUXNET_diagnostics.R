@@ -2,8 +2,6 @@
 #Calculate diagnostics for each site-year of FLUXNET data
 #Created 2/6/2020
 #===============================================================================
-library("here")
-
 FLUXNET_diagnostics <- function(){
 #Read in a function for calculating diagnostics
   if(exists("FLUXNET_diagnostics_fun", mode = "function") == FALSE){

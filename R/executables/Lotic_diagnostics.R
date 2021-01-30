@@ -2,8 +2,6 @@
 #Calculate metabolism diagnostics for each site-year of data
 #Created 1/22/2020
 #===============================================================================
-library("here")
-
 lotic_diagnostics <- function(){
 #-------------------------------------------------
 #Define functions to use  
@@ -60,6 +58,8 @@ lotic_diagnostics <- function(){
       #Reorder for the final output
         final <- merged[, c("Site_ID", "Year", "ER_K", "K600_max", "GPP_neg", "ER_pos", "num_days", 
           "NLDAS_data", "LAI_data", "Predicted_light", "MODIS_NPP")]
+        
+      return(final)
         
     } #End yearly_diagnostics function
   

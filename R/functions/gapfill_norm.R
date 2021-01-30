@@ -22,18 +22,18 @@
 #Created 8/22/2019
 #===============================================================================
 gapfill_norm <- function(ts, PQ, block, pmiss){
-  #-------------------------------------------------
-  #Replacing negative GPP and positive ER values
-  #-------------------------------------------------
-    #If there is negative GPP, then replace with NA
-      if(length(ts[ts[, "GPP"] < 0 & !is.na(ts[, "GPP"]), "GPP"]) !=0){
-        ts[ts[, "GPP"] < 0 & !is.na(ts[, "GPP"]), "GPP"] <- NA
-      } #End if statement
-  
-    #If there is positive ER, then replace with NA
-      if(length(ts[ts[, "ER"] > 0 & !is.na(ts[, "ER"]), "ER"]) !=0){
-        ts[ts[, "ER"] > 0 & !is.na(ts[, "ER"]), "ER"] <- NA
-      } #End if statement
+  # #-------------------------------------------------
+  # #Replacing negative GPP and positive ER values
+  # #-------------------------------------------------
+  #   #If there is negative GPP, then replace with NA
+  #     if(length(ts[ts[, "GPP"] < 0 & !is.na(ts[, "GPP"]), "GPP"]) !=0){
+  #       ts[ts[, "GPP"] < 0 & !is.na(ts[, "GPP"]), "GPP"] <- NA
+  #     } #End if statement
+  # 
+  #   #If there is positive ER, then replace with NA
+  #     if(length(ts[ts[, "ER"] > 0 & !is.na(ts[, "ER"]), "ER"]) !=0){
+  #       ts[ts[, "ER"] > 0 & !is.na(ts[, "ER"]), "ER"] <- NA
+  #     } #End if statement
       
     #Calculating NEP 
       ts$NEP <- ts[, "GPP"] + ts[, "ER"]  
