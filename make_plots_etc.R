@@ -14,6 +14,11 @@ setwd('~/git/streampulse/metab_synthesis_2/')
 
 # 0: setup ####
 
+dir.create('figures',
+           showWarnings = FALSE)
+dir.create('export_datasets',
+           showWarnings = FALSE)
+
 #choose colors for plot categories
 fnetcolor = 'sienna4'
 spcolor = 'cadetblue4'
@@ -23,17 +28,17 @@ ercolor = 'sienna'
 source('plot_helpers.R')
 
 # 1: load site data that will be used in plots (as opposed to stats) ####
-site_data_1 = readRDS('synthesis_shared_workflow/output/synthesis_site_metrics.rds') %>%
+site_data_1 = readRDS('output/synthesis_site_metrics.rds') %>%
     as_tibble() %>%
     select(sitecode = Site_ID, Stream_PAR_sum, Disch_ar1, MOD_ann_NPP)
 
 # OBSOLETE: load and prepare fluxnet data (highlighting discrepancy) ####
 
-fnet_diag = readRDS('synthesis_shared_workflow/output/FLUXNET_yearly_diagnostics.rds') %>%
+fnet_diag = readRDS('output/FLUXNET_yearly_diagnostics.rds') %>%
     as_tibble()
 
 #summarize by site, starting with a dataset that's summarized by site-year
-fnet_ann_2 = readRDS('synthesis_shared_workflow/output/FLUXNET_annual_compiled.rds')
+fnet_ann_2 = readRDS('output/FLUXNET_annual_compiled.rds')
 fnet_names_2 = names(fnet_ann_2)
 
 for(i in 1:length(fnet_ann_2)){
@@ -56,7 +61,7 @@ fnet_site_2 = fnet_full_2 %>%
     mutate(NEP_C_filled = GPP_C_filled + ER_C_filled)
 
 #summarize by site, starting with a dataset that's summarized by site-year-DOY
-fnet_list = readRDS('synthesis_shared_workflow/output/FLUXNET_filtered.rds')
+fnet_list = readRDS('output/FLUXNET_filtered.rds')
 
 fnet_names = names(fnet_list)
 for(i in 1:length(fnet_list)){
@@ -85,18 +90,18 @@ fnet_site = fnet_full %>%
 #   maybe FLUXNET_annual_compiled.rds wasn't gapfilled?)
 head(fnet_site, 3)
 head(fnet_site_2, 3)
-readRDS('synthesis_shared_workflow/output/FLUXNET_site_metrics.rds') %>%
+readRDS('output/FLUXNET_site_metrics.rds') %>%
     as_tibble()
 
 # 2: load and prepare fluxnet data ####
 
-fnet_diag = readRDS('synthesis_shared_workflow/output/FLUXNET_yearly_diagnostics.rds') %>%
+fnet_diag = readRDS('output/FLUXNET_yearly_diagnostics.rds') %>%
     as_tibble()
 
 restricted_use_sites = c("RU-Sam", "RU-SkP", "RU-Tks", "RU-Vrk", "SE-St1", "ZA-Kru")
 
 #summarize by site, starting with a dataset that's summarized by site-year
-fnet_ann = readRDS('synthesis_shared_workflow/output/FLUXNET_annual_compiled.rds')
+fnet_ann = readRDS('output/FLUXNET_annual_compiled.rds')
 fnet_names = names(fnet_ann)
 
 for(i in 1:length(fnet_ann)){
@@ -108,20 +113,31 @@ fnet_ann = fnet_ann[! fnet_names %in% restricted_use_sites]
 fnet_full = Reduce(bind_rows, fnet_ann) %>%
     as_tibble()
 
-fnet_site = fnet_full %>%
-    select(sitecode, GPP, ER, Net, Year) %>%
-    left_join(fnet_diag, by = c('sitecode' = 'Site_ID', 'Year')) %>%
-    filter(num_days / 365 >= 0.6) %>% #coverage filter
-    group_by(sitecode) %>%
-    summarize(GPP = mean(GPP, na.rm = TRUE),
-              ER = mean(ER, na.rm = TRUE)) %>%
-    ungroup() %>%
-    arrange(sitecode) %>%
-    rename(GPP_site_mean = GPP, ER_site_mean = ER) %>%
-    mutate(NEP_site_mean = GPP_site_mean + ER_site_mean)
+# #REPLACED BY NEXT CHUNK. RESULTS VERIFIED IDENTICAL
+# fnet_site = fnet_full %>%
+#     select(sitecode, GPP, ER, Net, Year) %>%
+#     left_join(fnet_diag, by = c('sitecode' = 'Site_ID', 'Year')) %>%
+#     filter(num_days / 365 >= 0.6) %>% #coverage filter
+#     group_by(sitecode) %>%
+#     summarize(GPP = mean(GPP, na.rm = TRUE),
+#               ER = mean(ER, na.rm = TRUE)) %>%
+#     ungroup() %>%
+#     arrange(sitecode) %>%
+#     rename(GPP_site_mean = GPP, ER_site_mean = ER) %>%
+#     mutate(NEP_site_mean = GPP_site_mean + ER_site_mean)
+
+fnet_site = readRDS('output/FLUXNET_site_metrics.rds') %>%
+    as_tibble() %>%
+    select(sitecode = Site_ID,
+           GPP_site_mean = ann_GPP,
+           ER_site_mean = ann_ER) %>%
+    filter(! is.na(GPP_site_mean),
+           ! is.na(ER_site_mean)) %>%
+    mutate(NEP_site_mean = GPP_site_mean + ER_site_mean) %>%
+    arrange(sitecode)
 
 #summarize by DOY for lips plots
-fnet_byday_list = readRDS('synthesis_shared_workflow/output/FLUXNET_filtered.rds')
+fnet_byday_list = readRDS('output/FLUXNET_filtered.rds')
 
 fnet_byday_names = names(fnet_byday_list)
 for(i in 1:length(fnet_byday_list)){
@@ -142,32 +158,58 @@ fnet_lips = fnet_byday_full %>%
     rename(GPP_C_filled = GPP, ER_C_filled = ER) %>%
     mutate(NEP_C_filled = GPP_C_filled + ER_C_filled)
 
-# 3: load and prepare streampulse data ####
-sp_list = readRDS('synthesis_shared_workflow/output/synthesis_gap_filled.rds')
+
+# 3. load and prepare streampulse data ####
+
+sp_list = readRDS('output/synthesis_gap_filled.rds')
+
+# #REPLACED BY NEXT CHUNK. RESULTS VERIFIED IDENTICAL
+#
+# #summarize by site
+# sp_names = names(sp_list)
+# for(i in 1:length(sp_list)){
+#
+#     #create sitecode column
+#     sp_list[[i]]$sitecode = sp_names[i]
+#
+#     #create columns for ER-K600 correlation significance and max K600
+#     sp_list[[i]] = sp_list[[i]] %>%
+#         group_by(Year) %>%
+#         mutate(
+#             ER_K600_R2 = erk_r2(ER, K600),
+#             max_K600 = max(K600, na.rm = TRUE)) %>%
+#         ungroup()
+# }
+#
+# sp_full = Reduce(bind_rows, sp_list) %>%
+#     as_tibble()
 
 #summarize by site
 sp_names = names(sp_list)
+
 for(i in 1:length(sp_list)){
-
-    #create sitecode column
     sp_list[[i]]$sitecode = sp_names[i]
-
-    #create column for ER-K600 correlation significance
-    sp_list[[i]] = sp_list[[i]] %>%
-        group_by(Year) %>%
-        mutate(
-            ER_K600_R2 = erk_r2(ER, K600),
-            max_K600 = max(K600, na.rm = TRUE)) %>%
-        ungroup()
 }
 
-sp_full = Reduce(bind_rows, sp_list) %>%
+sp_intermediate = Reduce(bind_rows, sp_list) %>%
     as_tibble()
+
+sp_full = readRDS('output/lotic_yearly_diagnostics.rds') %>%
+    as_tibble() %>%
+    select(sitecode = Site_ID,
+           Year,
+           ER_K,
+           max_K600 = K600_max) %>%
+    right_join(sp_intermediate,
+               by = c('sitecode', 'Year')) %>%
+    arrange(sitecode, Date) %>%
+    select(Date, U_ID, Year, DOY, GPP:discharge, PAR_sum, Stream_PAR_sum,
+           LAI_proc, GPP_filled:PAR_norm, sitecode, ER_K600_R2 = ER_K, max_K600)
 
 sp_site = sp_full %>%
     filter( #remove spurious model results
         ER_K600_R2 < 0.6,
-        max_K600 < 100) %>% #CHECK: this too
+        max_K600 < 100) %>%
     select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled) %>%
     group_by(sitecode, Year) %>%
     summarize(GPP_ann_sum = sum(GPP_C_filled, na.rm = TRUE),
@@ -179,7 +221,7 @@ sp_site = sp_full %>%
     ungroup() %>%
     arrange(sitecode) %>%
     mutate(NEP_site_mean = GPP_site_mean + ER_site_mean) %>%
-    left_join(site_data_1, by = 'sitecode') #include site data
+    left_join(site_data_1, by = 'sitecode')
 
 #summarize by DOY for lips plots
 sp_lips = sp_full %>%
@@ -202,11 +244,11 @@ sp_lips = sp_full %>%
 
 # TESTING ONLY: Er * K600 R^2 discrepancy ####
 
-source('synthesis_shared_workflow/R/functions/filter_metab.R')
+source('R/functions/filter_metab.R')
 synthesis_filtered <- filter_metab(
-    diag = readRDS("synthesis_shared_workflow/output/lotic_yearly_diagnostics.rds"),
+    diag = readRDS("output/lotic_yearly_diagnostics.rds"),
     filters = paste0(paste0("num_days >= ", 365 * 0.6), " & ER_K < 0.6", " & K600_max < 100"),
-    metab_rds = readRDS("synthesis_shared_workflow/output/lotic_standardized_metabolism.rds"),
+    metab_rds = readRDS("output/lotic_standardized_metabolism.rds"),
     has_NLDAS = TRUE,
     has_MODIS_NPP = TRUE
 )
@@ -228,7 +270,7 @@ distinct(sp_full, sitecode, Year) %>% group_by(sitecode) %>% summarize(n()) %>% 
 distinct(sp_full_2, sitecode, Year) %>% group_by(sitecode) %>% summarize(n()) %>% as.data.frame()
 group_by(sp_full_2, sitecode) %>% summarize(length(unique(ER_K600_R2XX)))
 group_by(sp_full, sitecode) %>% summarize(length(unique(ER_K600_R2)))
-lyd = readRDS("synthesis_shared_workflow/output/lotic_yearly_diagnostics.rds") %>% as_tibble()
+lyd = readRDS("output/lotic_yearly_diagnostics.rds") %>% as_tibble()
 
 #here's what we'd lose by filtering wonky model results:
 sp_full %>%
@@ -267,7 +309,7 @@ fnet_high_cov_bool = fnet_site$sitecode %in% fnet_high_cov_sites
 
 #skip to bottom of this section and read in
 
-site_data_2 = readRDS('data/site_data/lotic_site_info.rds') %>%
+site_data_2 = readRDS('output/lotic_site_info.rds') %>%
     as_tibble() %>%
     select(sitecode=Site_ID, lat=Lat, lon=Lon, epsg_crs, COMID, VPU)
 
@@ -294,8 +336,8 @@ for(i in 1:ni){
 }
 
 #(save progress)
-saveRDS(site_data_2$reach_proportion, 'data/spatial/reach_prop_col.rds')
-site_data_2$reach_proportion = readRDS('data/spatial/reach_prop_col.rds')
+saveRDS(site_data_2$reach_proportion, 'output/spatialreach_prop_col.rds')
+site_data_2$reach_proportion = readRDS('output/spatialreach_prop_col.rds')
 site_data_2 = filter(site_data_2, ! is.na(COMID))
 
 #construct list of DSN=component pairs to acquire. see NHDPlus docs for more.
@@ -316,8 +358,8 @@ nhdplusv2_data = select(nhdplusv2_data, COMID, STREAMORDE, FROMMEAS, TOMEAS,
                         MINELEVSMO)
 
 #(save progress again)
-saveRDS(nhdplusv2_data, 'data/spatial/nhdplusv2_data.rds')
-nhdplusv2_data = readRDS('data/spatial/nhdplusv2_data.rds') %>%
+saveRDS(nhdplusv2_data, 'output/spatialnhdplusv2_data.rds')
+nhdplusv2_data = readRDS('output/spatialnhdplusv2_data.rds') %>%
     as_tibble() %>%
     group_by(COMID) %>%
     summarize_all(first) %>%
@@ -333,8 +375,8 @@ site_data_2$TOTDASQKM_corr = site_data_2$TOTDASQKM - (site_data_2$AREASQKM - sit
 site_data_2$areal_corr_factor = site_data_2$TOTDASQKM_corr / site_data_2$TOTDASQKM
 
 #final
-# saveRDS(site_data_2, 'data/spatial/site_data2.rds')
-site_data_2 = readRDS('data/spatial/site_data2.rds')
+# saveRDS(site_data_2, 'output/spatialsite_data2.rds')
+site_data_2 = readRDS('output/spatialsite_data2.rds')
 
 # 6: (Figure 1) GPP-ER biplot and dist plots ####
 
@@ -857,11 +899,11 @@ write.csv(stats_set, 'export_datasets/streampulse_synthesis_statset.csv',
 width = readRDS('~/git/streampulse/metab_synthesis/data/lotic_streamlight_params.rds') %>%
     as_tibble() %>%
     select(sitecode = Site_ID, width = Width)
-site_data_A = readRDS('data/site_data/synthesis_site_metrics.rds') %>%
+site_data_A = readRDS('output/synthesis_site_metrics.rds') %>%
     as_tibble() %>%
     rename(sitecode = Site_ID) %>%
     full_join(width, by = 'sitecode')
-site_data_B = readRDS('data/spatial/site_data2.rds') %>%
+site_data_B = readRDS('output/spatialsite_data2.rds') %>%
     select(sitecode, lat, lon, stream_order = STREAMORDE, slope = SLOPE,
            ws_area = TOTDASQKM_corr)
 site_data = full_join(site_data_A, site_data_B) %>%

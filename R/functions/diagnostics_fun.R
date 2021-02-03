@@ -26,7 +26,7 @@
     } #End if else
 
     #What is the maximum daily K600
-      K600_max <- mean(ts[, "K600"], na.rm = TRUE)
+      K600_max <- max(ts[, "K600"], na.rm = TRUE)
 
     #Percentage of days with negative GPP
       GPP_neg <- (length(ts[ts[, "GPP_raw"] < 0 & !is.na(ts[, "GPP_raw"]), "GPP_raw"]) / nrow(ts)) * 100
