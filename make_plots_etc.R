@@ -9,6 +9,7 @@ library(plyr)
 library(tidyverse)
 library(RColorBrewer)
 library(plotrix)
+library(nhdR)
 
 setwd('~/git/streampulse/metab_synthesis_2/')
 
@@ -307,11 +308,12 @@ fnet_high_cov_bool = fnet_site$sitecode %in% fnet_high_cov_sites
 
 # 5: (skip if only plotting) generate site data that will be used for stats ####
 
-#skip to bottom of this section and read in
-
 site_data_2 = readRDS('output/lotic_site_info.rds') %>%
     as_tibble() %>%
-    select(sitecode=Site_ID, lat=Lat, lon=Lon, epsg_crs, COMID, VPU)
+    select(sitecode = Site_ID,
+           lat = Lat,
+           lon = Lon,
+           epsg_crs, COMID, VPU)
 
 #get reach proportional distance for as many sites as possible
 errflag = FALSE
@@ -319,12 +321,16 @@ site_data_2$reach_proportion = NA
 ni = nrow(site_data_2)
 for(i in 1:ni){
 
-    print(paste(i, ni, sep='/'))
+    print(paste(i, ni, sep = '/'))
     tryCatch({
-        rp = calc_reach_prop(site_data_2$VPU[i], site_data_2$COMID[i],
-                             site_data_2$lat[i], site_data_2$lon[i],
-                             site_data_2$epsg_crs[i], quiet=TRUE)
-    }, error=function(e) {print('error'); errflag <<- TRUE} )
+        rp = calc_reach_prop(VPU = site_data_2$VPU[i],
+                             COMID = site_data_2$COMID[i],
+                             lat = site_data_2$lat[i],
+                             long = site_data_2$lon[i],
+                             CRS = site_data_2$epsg_crs[i],
+                             quiet = TRUE,
+                             force_redownload = TRUE)
+    }, error = function(e) {print('error'); errflag <<- TRUE} )
 
     if(errflag) {
         errflag = FALSE
@@ -336,8 +342,8 @@ for(i in 1:ni){
 }
 
 #(save progress)
-saveRDS(site_data_2$reach_proportion, 'output/spatialreach_prop_col.rds')
-site_data_2$reach_proportion = readRDS('output/spatialreach_prop_col.rds')
+saveRDS(site_data_2$reach_proportion, 'output/spatial/reach_prop_col.rds')
+site_data_2$reach_proportion = readRDS('output/spatial/reach_prop_col.rds')
 site_data_2 = filter(site_data_2, ! is.na(COMID))
 
 #construct list of DSN=component pairs to acquire. see NHDPlus docs for more.
@@ -358,8 +364,8 @@ nhdplusv2_data = select(nhdplusv2_data, COMID, STREAMORDE, FROMMEAS, TOMEAS,
                         MINELEVSMO)
 
 #(save progress again)
-saveRDS(nhdplusv2_data, 'output/spatialnhdplusv2_data.rds')
-nhdplusv2_data = readRDS('output/spatialnhdplusv2_data.rds') %>%
+saveRDS(nhdplusv2_data, 'output/spatial/nhdplusv2_data.rds')
+nhdplusv2_data = readRDS('output/spatial/nhdplusv2_data.rds') %>%
     as_tibble() %>%
     group_by(COMID) %>%
     summarize_all(first) %>%
@@ -375,8 +381,8 @@ site_data_2$TOTDASQKM_corr = site_data_2$TOTDASQKM - (site_data_2$AREASQKM - sit
 site_data_2$areal_corr_factor = site_data_2$TOTDASQKM_corr / site_data_2$TOTDASQKM
 
 #final
-# saveRDS(site_data_2, 'output/spatialsite_data2.rds')
-site_data_2 = readRDS('output/spatialsite_data2.rds')
+# saveRDS(site_data_2, 'output/spatial/site_data2.rds')
+site_data_2 = readRDS('output/spatial/site_data2.rds')
 
 # 6: (Figure 1) GPP-ER biplot and dist plots ####
 
@@ -903,7 +909,7 @@ site_data_A = readRDS('output/synthesis_site_metrics.rds') %>%
     as_tibble() %>%
     rename(sitecode = Site_ID) %>%
     full_join(width, by = 'sitecode')
-site_data_B = readRDS('output/spatialsite_data2.rds') %>%
+site_data_B = readRDS('output/spatial/site_data2.rds') %>%
     select(sitecode, lat, lon, stream_order = STREAMORDE, slope = SLOPE,
            ws_area = TOTDASQKM_corr)
 site_data = full_join(site_data_A, site_data_B) %>%

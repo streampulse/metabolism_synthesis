@@ -17,7 +17,8 @@ vpu_from_point = function(lat, long, CRS) {
 #watershed summary data for a reach, we can adjust it according to how much
 #of the total upstream area actually contributes to the point in question.
 # A value of 0 means upstream end; 1 means downstream end.
-calc_reach_prop = function(VPU, COMID, lat, long, CRS, quiet=FALSE){
+calc_reach_prop = function(VPU, COMID, lat, long, CRS, quiet=FALSE,
+                           force_redownload = FALSE){
 
     if(! quiet){
         message(paste0('The nhdR package downloads NHDPlusV2 components to ',
@@ -26,9 +27,9 @@ calc_reach_prop = function(VPU, COMID, lat, long, CRS, quiet=FALSE){
     }
 
     fl = nhdR::nhd_plus_load(vpu=VPU, component='NHDSnapshot',
-        dsn='NHDFlowline', approve_all_dl=TRUE)
+        dsn='NHDFlowline', approve_all_dl=TRUE, force_dl = force_redownload)
     fl_etc = nhdR::nhd_plus_load(vpu=VPU, component='NHDPlusAttributes',
-        dsn='PlusFlowlineVAA', approve_all_dl=TRUE)
+        dsn='PlusFlowlineVAA', approve_all_dl=TRUE, force_dl = force_redownload)
 
     colnames(fl)[colnames(fl) == 'ComID'] = 'COMID'
     colnames(fl)[colnames(fl) == 'ReachCode'] = 'REACHCODE'
@@ -77,9 +78,12 @@ nhdplusv2_bulk = function(site_df, nhdplusv2_sets, quiet=FALSE){
             print(paste(j, nhdplusv2_sets[[i]]))
 
             if(i == 1 || initerr){
-                row_base = try(nhdplusv2_from_comid(site_df$VPU[j],
-                    site_df$COMID[j], names(setlist[i]), setlist[[i]],
-                    quiet=quiet))
+                row_base = try(nhdplusv2_from_comid(
+                    VPU = site_df$VPU[j],
+                    COMID = site_df$COMID[j],
+                    component = names(setlist[i]),
+                    DSN = setlist[[i]],
+                    quiet = quiet))
                 if('try-error' %in% class(row_base) || nrow(row_base) > 1){
                     initerr = TRUE
                     row_base = data.frame(COMID=site_df$COMID[j])
