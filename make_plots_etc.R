@@ -192,26 +192,16 @@ for(i in 1:length(sp_list)){
     sp_list[[i]]$sitecode = sp_names[i]
 }
 
-sp_intermediate = Reduce(bind_rows, sp_list) %>%
-    as_tibble()
-
-sp_full = readRDS('output/lotic_yearly_diagnostics.rds') %>%
+sp_full = Reduce(bind_rows, sp_list) %>%
     as_tibble() %>%
-    select(sitecode = Site_ID,
-           Year,
-           ER_K,
-           max_K600 = K600_max) %>%
-    right_join(sp_intermediate,
-               by = c('sitecode', 'Year')) %>%
     arrange(sitecode, Date) %>%
-    select(Date, U_ID, Year, DOY, GPP:discharge, PAR_sum, Stream_PAR_sum,
-           LAI_proc, GPP_filled:PAR_norm, sitecode, ER_K600_R2 = ER_K, max_K600)
+    select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled)
 
 sp_site = sp_full %>%
-    filter( #remove spurious model results
-        ER_K600_R2 < 0.6,
-        max_K600 < 100) %>%
-    select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled) %>%
+    # filter( #remove spurious model results
+    #     ER_K600_R2 < 0.6,
+    #     max_K600 < 100) %>%
+    # select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled) %>%
     group_by(sitecode, Year) %>%
     summarize(GPP_ann_sum = sum(GPP_C_filled, na.rm = TRUE),
               ER_ann_sum = sum(ER_C_filled, na.rm = TRUE)) %>%
@@ -226,13 +216,6 @@ sp_site = sp_full %>%
 
 #summarize by DOY for lips plots
 sp_lips = sp_full %>%
-    filter( #remove spurious model results
-        ER_K600_R2 < 0.6,#) %>%
-        max_K600 < 100) %>%
-    mutate(GPP_C_filled = case_when(GPP_C_filled < 0 ~ 0,
-                                    TRUE ~ GPP_C_filled),
-           ER_C_filled = case_when(ER_C_filled > 0 ~ 0,
-                                   TRUE ~ ER_C_filled)) %>%
     select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled) %>%
     group_by(sitecode, DOY) %>%
     summarize(GPP_C_filled = mean(GPP_C_filled, na.rm=TRUE), #average metab by day across years
