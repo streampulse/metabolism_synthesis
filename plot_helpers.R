@@ -26,6 +26,24 @@ calc_reach_prop = function(VPU, COMID, lat, long, CRS, quiet=FALSE,
             ' Fortunately, each component need only be downloaded once.'))
     }
 
+    try_result = try(nhdR::nhd_plus_get(vpu = VPU,
+                                        component = "NHDSnapshot",
+                                        force_unzip = TRUE))
+
+    if(inherits(try_result, 'try-error') || try_result != 0){
+        nhdR::nhd_plus_get(vpu = VPU, component = "NHDSnapshot", force_dl = TRUE)
+        nhdR::nhd_plus_get(vpu = VPU, component = "NHDSnapshot", force_unzip = TRUE)
+    }
+
+    try_result = try(nhdR::nhd_plus_get(vpu = VPU,
+                                        component = "NHDPlusAttributes",
+                                        force_unzip = TRUE))
+
+    if(inherits(try_result, 'try-error') || try_result != 0){
+        nhdR::nhd_plus_get(vpu = VPU, component = "NHDPlusAttributes", force_dl = TRUE)
+        nhdR::nhd_plus_get(vpu = VPU, component = "NHDPlusAttributes", force_unzip = TRUE)
+    }
+
     fl = nhdR::nhd_plus_load(vpu=VPU, component='NHDSnapshot',
         dsn='NHDFlowline', approve_all_dl=TRUE, force_dl = force_redownload)
     fl_etc = nhdR::nhd_plus_load(vpu=VPU, component='NHDPlusAttributes',

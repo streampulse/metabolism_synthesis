@@ -194,8 +194,8 @@ for(i in 1:length(sp_list)){
 
 sp_full = Reduce(bind_rows, sp_list) %>%
     as_tibble() %>%
-    arrange(sitecode, Date) %>%
-    select(sitecode, Year, DOY, GPP_C_filled, ER_C_filled)
+    select(sitecode, Date, Year, DOY, GPP_C, ER_C, GPP_C_filled, ER_C_filled) %>%
+    arrange(sitecode, Date)
 
 sp_site = sp_full %>%
     # filter( #remove spurious model results
@@ -299,25 +299,40 @@ site_data_2 = readRDS('output/lotic_site_info.rds') %>%
            epsg_crs, COMID, VPU)
 
 #get reach proportional distance for as many sites as possible
+
+if(file.exists('output/spatial/reach_prop_col.rds')){
+    site_data_2$reach_proportion = readRDS('output/spatial/reach_prop_col.rds')
+} else {
+    site_data_2$reach_proportion = NA
+}
+
+remake_reach_proportion_column = FALSE
 errflag = FALSE
-site_data_2$reach_proportion = NA
 ni = nrow(site_data_2)
 for(i in 1:ni){
 
     print(paste(i, ni, sep = '/'))
-    tryCatch({
-        rp = calc_reach_prop(VPU = site_data_2$VPU[i],
-                             COMID = site_data_2$COMID[i],
-                             lat = site_data_2$lat[i],
-                             long = site_data_2$lon[i],
-                             CRS = site_data_2$epsg_crs[i],
-                             quiet = TRUE,
-                             force_redownload = TRUE)
-    }, error = function(e) {print('error'); errflag <<- TRUE} )
 
-    if(errflag) {
-        errflag = FALSE
-        site_data_2$reach_proportion[i] = NA
+    if(is.na(site_data_2$reach_proportion[i]) || remake_reach_proportion_column){
+
+        tryCatch({
+            rp = calc_reach_prop(VPU = site_data_2$VPU[i],
+                                 COMID = site_data_2$COMID[i],
+                                 lat = site_data_2$lat[i],
+                                 long = site_data_2$lon[i],
+                                 CRS = site_data_2$epsg_crs[i],
+                                 quiet = TRUE,
+                                 force_redownload = FALSE)
+        }, error = function(e) {print('error'); errflag <<- TRUE} )
+
+        if(errflag){
+            errflag = FALSE
+            site_data_2$reach_proportion[i] = NA
+            next
+        }
+
+    } else {
+        message('already got this one. set remake_reach_proportion_column = TRUE to get it again.')
         next
     }
 
@@ -861,26 +876,31 @@ bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=TRUE, outfile='figure
 
 # 10: export regression dataset (needs update) ####
 
-coverage_tb = sp %>%
+diag = as_tibble(readRDS('output/lotic_yearly_diagnostics.rds'))
+
+coverage_tb = diag %>%
+    rename(sitecode = Site_ID) %>%
+    filter(paste(sitecode, Year) %in% paste(sp_full$sitecode, sp_full$Year)) %>%
     group_by(sitecode) %>%
     summarize(
-        nyear = first(nyear),
-        coverage = first(coverage)) %>%
+        nyear = n(),
+        coverage = round(sum(num_days) / (nyear * 365),
+                         digits = 2)) %>%
     ungroup()
 
 stats_set = site_data_2 %>%
-    full_join(sp_site, by='sitecode') %>%
+    right_join(sp_site, by = 'sitecode') %>%
     left_join(coverage_tb) %>%
     select(sitecode, GPP_site_mean, ER_site_mean,
            nyear, coverage, Disch_ar1, MOD_ann_NPP, Stream_PAR_sum,
            lat, lon, epsg_crs, area_km_corr = TOTDASQKM_corr) %>%
-    filter(
-        ! is.na(GPP_site_mean),
-        ! is.na(ER_site_mean)) %>%
+    # filter(
+    #     ! is.na(GPP_site_mean),
+    #     ! is.na(ER_site_mean)) %>%
     arrange(sitecode)
 
 write.csv(stats_set, 'export_datasets/streampulse_synthesis_statset.csv',
-          row.names=FALSE)
+          row.names = FALSE)
 
 # OBSOLETE: data for emily to explore ####
 
