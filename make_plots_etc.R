@@ -950,6 +950,17 @@ explore_set = bind_rows(sp_explore, fnet_explore)
 
 write_csv(explore_set, 'export_datasets/summarized_by_siteyear.csv')
 
+explore_set_2 = explore_set %>%
+    group_by(sitecode) %>%
+    summarize(source = first(source),
+              n_years = n(),
+              GPP_site_mean = mean(GPP_ann_sum, na.rm = TRUE),
+              ER_site_mean = mean(ER_ann_sum, na.rm = TRUE)) %>%
+    ungroup() %>%
+    arrange(desc(source), sitecode)
+
+write_csv(explore_set_2, 'export_datasets/summarized_by_site.csv')
+
 # OBSOLETE: data for Emily to explore ####
 
 #accumulate all site data
