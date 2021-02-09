@@ -902,7 +902,55 @@ stats_set = site_data_2 %>%
 write.csv(stats_set, 'export_datasets/streampulse_synthesis_statset.csv',
           row.names = FALSE)
 
-# OBSOLETE: data for emily to explore ####
+# 11. data for Emily to explore ####
+
+sp_siteyear = sp_full %>%
+    group_by(sitecode, Year) %>%
+    summarize(GPP_ann_sum = sum(GPP_C_filled, na.rm = TRUE),
+              ER_ann_sum = sum(ER_C_filled, na.rm = TRUE)) %>%
+    ungroup()
+
+diag_sub = diag %>%
+    select(sitecode = Site_ID,
+           Year,
+           num_days)
+
+sp_explore = left_join(sp_siteyear,
+                       diag_sub,
+                       by = c('sitecode', 'Year')) %>%
+    rename(year = Year,
+           n_days = num_days) %>%
+    mutate(source = 'StreamPULSE') %>%
+    select(sitecode, source, year, n_days, GPP_ann_sum, ER_ann_sum) %>%
+    arrange(sitecode, year)
+
+fnet_diag = as_tibble(readRDS('output/FLUXNET_yearly_diagnostics.rds'))
+
+fnet_siteyear = fnet_full %>%
+    group_by(sitecode, Year) %>%
+    summarize(GPP_ann_sum = sum(GPP, na.rm = TRUE),
+              ER_ann_sum = sum(ER, na.rm = TRUE)) %>%
+    ungroup()
+
+fnet_diag_sub = fnet_diag %>%
+    select(sitecode = Site_ID,
+           Year,
+           num_days)
+
+fnet_explore = left_join(fnet_siteyear,
+                         fnet_diag_sub,
+                         by = c('sitecode', 'Year')) %>%
+    rename(year = Year,
+           n_days = num_days) %>%
+    mutate(source = 'FLUXNET') %>%
+    select(sitecode, source, year, n_days, GPP_ann_sum, ER_ann_sum) %>%
+    arrange(sitecode, year)
+
+explore_set = bind_rows(sp_explore, fnet_explore)
+
+write_csv(explore_set, 'export_datasets/summarized_by_siteyear.csv')
+
+# OBSOLETE: data for Emily to explore ####
 
 #accumulate all site data
 width = readRDS('~/git/streampulse/metab_synthesis/data/lotic_streamlight_params.rds') %>%
