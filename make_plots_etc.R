@@ -138,17 +138,7 @@ fnet_site = readRDS('output/FLUXNET_site_metrics.rds') %>%
     arrange(sitecode)
 
 #summarize by DOY for lips plots
-fnet_byday_list = readRDS('output/FLUXNET_filtered.rds')
-
-fnet_byday_names = names(fnet_byday_list)
-for(i in 1:length(fnet_byday_list)){
-    fnet_byday_list[[i]]$sitecode = fnet_byday_names[i]
-}
-
-fnet_byday_full = Reduce(bind_rows, fnet_byday_list) %>%
-    as_tibble()
-
-fnet_lips = fnet_byday_full %>%
+fnet_lips = fnet_full %>%
     select(sitecode, GPP, ER, DOY, Year) %>%
     group_by(sitecode, DOY) %>%
     summarize(GPP = mean(GPP, na.rm=TRUE), #average metab by day across years
