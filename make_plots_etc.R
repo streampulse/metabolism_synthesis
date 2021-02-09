@@ -102,7 +102,7 @@ fnet_diag = readRDS('output/FLUXNET_yearly_diagnostics.rds') %>%
 restricted_use_sites = c("RU-Sam", "RU-SkP", "RU-Tks", "RU-Vrk", "SE-St1", "ZA-Kru")
 
 #summarize by site, starting with a dataset that's summarized by site-year
-fnet_ann = readRDS('output/FLUXNET_annual_compiled.rds')
+fnet_ann = readRDS('output/FLUXNET_filtered.rds')
 fnet_names = names(fnet_ann)
 
 for(i in 1:length(fnet_ann)){
@@ -903,6 +903,8 @@ write.csv(stats_set, 'export_datasets/streampulse_synthesis_statset.csv',
           row.names = FALSE)
 
 # 11. data for Emily to explore ####
+
+diag = as_tibble(readRDS('output/lotic_yearly_diagnostics.rds'))
 
 sp_siteyear = sp_full %>%
     group_by(sitecode, Year) %>%
