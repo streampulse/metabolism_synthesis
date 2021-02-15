@@ -864,7 +864,7 @@ bubble_plot(xvar='MOD_ann_NPP', comp='ER_site_mean', logx=TRUE, outfile='figures
 bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=FALSE, outfile='figures/bubble_plots/MODNPP_NEP_linear.jpeg')
 bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=TRUE, outfile='figures/bubble_plots/MODNPP_NEP_log.jpeg')
 
-# 10: export regression dataset (needs update) ####
+# 10: export regression dataset ####
 
 diag = as_tibble(readRDS('output/lotic_yearly_diagnostics.rds'))
 
@@ -878,12 +878,26 @@ coverage_tb = diag %>%
                          digits = 2)) %>%
     ungroup()
 
-stats_set = site_data_2 %>%
-    right_join(sp_site, by = 'sitecode') %>%
-    left_join(coverage_tb) %>%
-    select(sitecode, GPP_site_mean, ER_site_mean,
-           nyear, coverage, Disch_ar1, MOD_ann_NPP, Stream_PAR_sum,
-           lat, lon, epsg_crs, area_km_corr = TOTDASQKM_corr) %>%
+width = readRDS('~/git/streampulse/metab_synthesis/data/lotic_streamlight_params.rds') %>%
+    as_tibble() %>%
+    select(sitecode = Site_ID, width = Width)
+site_data_A = readRDS('output/synthesis_site_metrics.rds') %>%
+    as_tibble() %>%
+    rename(sitecode = Site_ID) %>%
+    full_join(width, by = 'sitecode')
+site_data_B = readRDS('output/spatial/site_data2.rds') %>%
+    select(sitecode, lat, lon, stream_order = STREAMORDE, slope = SLOPE,
+           ws_area_km2 = TOTDASQKM_corr)
+site_data = full_join(site_data_A, site_data_B)
+    # rename_all(function(x) paste0('__', x)) %>%
+    # rename(sitecode = '__sitecode')
+
+stats_set = site_data %>%
+    # right_join(sp_site, by = 'sitecode') %>%
+    right_join(coverage_tb) %>%
+    # select(sitecode, ann_GPP_C, ann_ER_C,
+    #        nyear, coverage, Disch_ar1, MOD_ann_NPP, Stream_PAR_sum,
+    #        lat, lon, ws_area_km2) %>%
     # filter(
     #     ! is.na(GPP_site_mean),
     #     ! is.na(ER_site_mean)) %>%
@@ -953,7 +967,7 @@ explore_set_2 = explore_set %>%
 
 write_csv(explore_set_2, 'export_datasets/summarized_by_site.csv')
 
-# OBSOLETE: data for Emily to explore ####
+# OBSOLETE. data for Bob to explore ####
 
 #accumulate all site data
 width = readRDS('~/git/streampulse/metab_synthesis/data/lotic_streamlight_params.rds') %>%
@@ -970,25 +984,8 @@ site_data = full_join(site_data_A, site_data_B) %>%
     rename_all(function(x) paste0('__', x)) %>%
     rename(sitecode = '__sitecode')
 
-#not really "unmodified". ER_K600_R2 and max_K600 have already been added
-unmodified_from_phil = Reduce(bind_rows, sp_list) %>%
-    as_tibble()
-
-#missing metab rows removed, ERxK R2 < 0.5, max K < 100, impossible GPP & ER corrected
-cleaned_up = unmodified_from_phil %>%
-    filter( #remove records with missing metab and/or spurious model results
-        ! is.na(GPP),
-        ! is.na(ER),
-        ER_K600_R2 < 0.5,#) %>%
-        max_K600 < 100) %>%
-    mutate(GPP = case_when(GPP < 0 ~ 0, #correct impossible metab vals
-                           TRUE ~ GPP),
-           ER = case_when(ER > 0 ~ 0,
-                          TRUE ~ ER)) %>%
-    select(-starts_with('U_ID'))
-
-#summary 1 (by site-DOY)
-summarized_by_siteDOY = cleaned_up %>%
+# #summary 1 (by site-DOY)
+summarized_by_siteDOY = sp_full %>%
     group_by(sitecode, DOY) %>%
     summarize(across(everything(), mean, na.rm = TRUE),
               nyear = length(unique(Year))) %>%
@@ -1005,36 +1002,36 @@ summarized_by_siteDOY = cleaned_up %>%
     mutate(NEP_C_filled = GPP_C_filled + ER_C_filled) %>%
     left_join(site_data, by = 'sitecode') #include site data
 
-#summary 2 (by site-year)
-summarized_by_siteyear = cleaned_up %>%
-    group_by(sitecode, Year) %>%
-    arrange(DOY) %>%
-    mutate(
-        GPP = impute_ts(GPP),
-        ER = impute_ts(ER)) %>%
-    summarize(across(all_of(c('GPP', 'ER', 'K600', 'DO_obs', 'DO_sat',
-                              'temp_water', 'LAI_proc', 'discharge',
-                              'PAR_sum', 'Stream_PAR_sum',
-                              'ER_K600_R2', 'max_K600')),
-                     .fn = list(mean = mean),
-                     .names = '{col}_{fn}'),
-              across(all_of(c('GPP', 'ER', 'LAI_proc', 'discharge', 'PAR_sum',
-                              'Stream_PAR_sum')),
-                     .fn = list(sum = sum),
-                     .names = '{col}_{fn}')) %>%
-    mutate(coverage = n() / 365) %>% #get proportion nonmissing for the aggregate year
-    ungroup() %>%
-    rename(PAR_sum = PAR_sum_sum, Stream_PAR_sum = Stream_PAR_sum_sum,
-           PAR_mean = PAR_sum_mean, Stream_PAR_mean = Stream_PAR_sum_mean) %>%
-    group_by(sitecode) %>%
-    mutate( #fill gaps, convert from gO2/m^2/d to gC/m^2/d
-        GPP_C_sum_filled = O2_to_C(GPP_sum),
-        ER_C_sum_filled = O2_to_C(ER_sum)) %>%
-    ungroup() %>%
-    select(-GPP_sum, -ER_sum) %>%
-    arrange(sitecode, Year) %>%
-    mutate(NEP_C_sum_filled = GPP_C_sum_filled + ER_C_sum_filled) %>%
-    left_join(site_data, by = 'sitecode') #include site data
+# #summary 2 (by site-year; obsolete?)
+# summarized_by_siteyear = sp_full %>%
+#     group_by(sitecode, Year) %>%
+#     arrange(DOY) %>%
+#     mutate(
+#         GPP = impute_ts(GPP),
+#         ER = impute_ts(ER)) %>%
+#     summarize(across(all_of(c('GPP', 'ER', 'K600', 'DO_obs', 'DO_sat',
+#                               'temp_water', 'LAI_proc', 'discharge',
+#                               'PAR_sum', 'Stream_PAR_sum',
+#                               'ER_K600_R2', 'max_K600')),
+#                      .fn = list(mean = mean),
+#                      .names = '{col}_{fn}'),
+#               across(all_of(c('GPP', 'ER', 'LAI_proc', 'discharge', 'PAR_sum',
+#                               'Stream_PAR_sum')),
+#                      .fn = list(sum = sum),
+#                      .names = '{col}_{fn}')) %>%
+#     mutate(coverage = n() / 365) %>% #get proportion nonmissing for the aggregate year
+#     ungroup() %>%
+#     rename(PAR_sum = PAR_sum_sum, Stream_PAR_sum = Stream_PAR_sum_sum,
+#            PAR_mean = PAR_sum_mean, Stream_PAR_mean = Stream_PAR_sum_mean) %>%
+#     group_by(sitecode) %>%
+#     mutate( #fill gaps, convert from gO2/m^2/d to gC/m^2/d
+#         GPP_C_sum_filled = O2_to_C(GPP_sum),
+#         ER_C_sum_filled = O2_to_C(ER_sum)) %>%
+#     ungroup() %>%
+#     select(-GPP_sum, -ER_sum) %>%
+#     arrange(sitecode, Year) %>%
+#     mutate(NEP_C_sum_filled = GPP_C_sum_filled + ER_C_sum_filled) %>%
+#     left_join(site_data, by = 'sitecode') #include site data
 
 # #summary 3 (by site)
 # summarized_by_site = sp_site
