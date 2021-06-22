@@ -189,12 +189,16 @@ pre code {
 <p>Throughout this document certain terms are indicated with changes in the color or emphasis of text. Please refer to the following key for their meaning:</p>
 <hr />
 <ul>
-<li><i>relative paths</i></li>
 <li><span style="color:orange"><strong>R functions</strong></span></li>
-<li><span style="color:SlateBlue"><strong>R executable scripts</strong></span></li>
 <li><strong>R Package</strong></li>
+<li><span style="color:SlateBlue"><strong>R executable scripts</strong></span></li>
+<li><strong><span style="color:#009688">“Column name”</span></strong></li>
+<li><i><span style="color:#00cc99">Output dataset</span></i><br />
+</li>
+<li><i><span style="color:#BB1AA5">Output included in <strong>BernhardtMetabolism</strong> package</span></i></li>
 </ul>
 <hr />
+<p>Note, this R markdown file is provided because some may find it instructive to review the code; however, because of the size and complexity of this portion of the workflow the underlying code is not provided and users are not able to independently reproduce the results.</p>
 </div>
 <div id="section" class="section level1 tabset tabset-pills">
 <h1 class="tabset tabset-pills"></h1>
@@ -225,18 +229,10 @@ pre code {
 <div id="export-a-set-of-basic-site-information-for-sites" class="section level5">
 <h5>Export a set of basic site information for sites</h5>
 <p>A set of basic site information (Site ID, site name, data source, latitude, longitude) were created in a standardized format.</p>
-<ul>
-<li>Output file: <i>../output/lotic_site_basic.rds</i></li>
-</ul>
 </div>
 <div id="extract-information-on-the-timeframes-of-data-availability" class="section level5">
 <h5>Extract information on the timeframes of data availability</h5>
 <p>At each site, the start and end year of available metabolism data was calculated using <span style="color:SlateBlue"><strong>Lotic_date_ranges.R</strong></span>. Additionally, the availability of data for individual site-years was generated. This information was largely used to inform downloading other data sources later in the workflow.</p>
-<ul>
-<li>Output file: <i>../output/lotic_timeframes.rds</i></li>
-<li>Output file: <i>../output/sp_site_years.rds</i></li>
-<li>Output file: <i>../output/powell_site_years.rds</i></li>
-</ul>
 </div>
 <div id="get-more-detailed-site-information-for-conus-sites" class="section level5">
 <h5>Get more detailed site information for CONUS sites</h5>
@@ -246,14 +242,12 @@ pre code {
 <li>Similarly, the vector processing unit was associated with each site using the simple wrapper function <span style="color:orange"><strong>vpu_from_point.R</strong></span>.</li>
 <li>Stream order information for each reach was pulled from the NHDplus_v2 flowlines based on COMID.</li>
 </ul>
-<p>Output file: <i>../output/lotic_site_info.rds</i></p>
 <p>Timeseries of downwelling shortwave radiation and leaf area index (LAI) were downloaded for two purposes. First, these are two of the inputs used by the <a href="https://github.com/psavoy/StreamLight"><strong>StreamLight R package</strong></a> to generate estimates of light reaching the stream surface. Second, they can be valuable in their own right to assess patterns of metabolism in regards to broad patterns in light availability or canopy cover.</p>
 </div>
 </div>
 <div id="nldas-downwelling-shortwave-radiation-data" class="section level4">
 <h4>2.1 NLDAS downwelling shortwave radiation data</h4>
 <p>North American Data Assimilation Systems (NLDAS) downwelling shortwave radiation (W m<sup>-2</sup>) data was downloaded via the <a href="https://disc.gsfc.nasa.gov/information/tools?title=Hydrology%20Data%20Rods">data rods service</a>. The download and processing of NLDAS data was handled by the <span style="color:orange"><strong>NLDAS_DL_bulk</strong></span> and <span style="color:orange"><strong>NLDAS_proc</strong></span> functions from the <a href="https://github.com/psavoy/StreamLightUtils"><strong>StreamLightUtils R package</strong></a></p>
-<p>Output file: <i>../output/NLDAS_processed.rds</i></p>
 </div>
 <div id="modis-data-leaf-area-index-data" class="section level4">
 <h4>2.2 MODIS data leaf area index data</h4>
@@ -261,7 +255,6 @@ pre code {
 <p>After submitting and downloading the AppEEARS request the zipped files were unpacked and processed using the <span style="color:orange"><strong>AppEEARS_unpack</strong></span> and <span style="color:orange"><strong>AppEEARS_proc</strong></span> functions from <strong>StreamLightUtils</strong>.</p>
 <p>Not all sites had LAI data in the AppEEARS request, and for those sites data was then downloading using the <strong>MODISTools</strong> package for a 1km buffer around the site location. The timeseries for each pixel was processed separately and then a representative median timeseries of filtered LAI was returned for the site.</p>
 <p>Timeseries of LAI were smoothed and gap-filled to extract the seasonal phenological signal following the approach of <a href="https://link.springer.com/chapter/10.1007/978-1-4419-0026-5_2">Gu et al. (2009)</a>. The <strong>StreamLightUtils</strong> package implements this fitting method by using the <strong>phenofit</strong> R package <a href="https://github.com/kongdd/phenofit">found here</a> (Kong 2020).</p>
-<p>Output file: <i>../output/MOD_LAI_processed.rds</i></p>
 </div>
 </div>
 <div id="estimates-of-light-at-the-stream-surface" class="section level3">
@@ -307,7 +300,6 @@ pre code {
 <div id="tree-height-th" class="section level5">
 <h5>Tree height (<em><span style="color:#009faf">TH</span></em>)</h5>
 <p>Tree heights were derived using 30m resolution global canopy height estimates from <a href="https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub">Potapov et al. (2021)</a>. Heights were extracted by using the site coordinates and extending a 60m buffer into the riparian zone. The 90th percentile of canopy heights within the buffer for each site were returned. The 90th percentile of heights was used to capture tall canopy elements that could shade the channel.</p>
-<p>Output file: <i>../output/lotic_streamlight_params.rds</i></p>
 </div>
 </div>
 <div id="generate-driver-files" class="section level4">
@@ -323,52 +315,49 @@ pre code {
 <li><strong><span style="color:#009688">“SW_inc”</span></strong>: Total incoming downwelling shortwave radiation (W m<sup>-2</sup>). <strong>StreamLightUtils</strong> provides tools to get hourly data from NLDAS.</li>
 <li><strong><span style="color:#009688">“LAI”</span></strong>: MODIS leaf area index (m<sup>2</sup> m<sup>-2</sup>). <strong>StreamLightUtils</strong> provides tools to generate interpolated to daily values using the <strong><span style="color:DarkOrange">AppEEARS_proc</span></strong> function.</li>
 </ul>
-<p>Output file: Individual driver files were output in the form “Site_ID”_driver.rds in <i>../output/driver files</i></p>
 </div>
 <div id="run-stream_light-to-estimate-light-at-the-stream-surface" class="section level4">
 <h4>3.3 Run <strong><span style="color:DarkOrange">stream_light</span></strong> to estimate light at the stream surface</h4>
 <p>The <strong>StreamLight</strong> package was used to estimate photosynthetically active radiation reaching the stream surface at hourly timesteps. Hourly estimates at the stream surface were then aggregated to daily sums (mol m<sup>-2</sup> d<sup>-1</sup>) so they could be incorporated into the metabolism synthesis data.</p>
-<p>Output file: <i>../output/modeled_light.rds</i></p>
 </div>
 </div>
-<div id="creating-the-standardized-lotic-dataset" class="section level3">
-<h3>4. Creating the standardized lotic dataset</h3>
+<div id="creating-the-standardized-lotic-dataset-lotic_standardized_full" class="section level3">
+<h3>4. Creating the standardized lotic dataset (<i><span style="color:#BB1AA5">lotic_standardized_full</span></i>)</h3>
 <p><font size="5">Standardized timeseries</font></p>
 <p>Stream metabolism, riparian LAI, incoming light, and modeled estimates of light at the stream surface were compiled into a single set of standardized files using <span style="color:SlateBlue"><strong>Lotic_standardized_metabolism.R</strong></span>, which leverages the <span style="color:orange"><strong>synthesis_format</strong></span> function. At this point all negative GPP and positive ER values were replaced with NA (columns GPP and ER) but the raw data was retained (columns GPP_raw and ER_raw). In addition to stream data, incoming PAR, predicted PAR, and processed LAI generated in earlier steps are also included. To ensure that all files are formatted in the same manner, if any datasets are not present then the corresponding columns were populated with NA values.</p>
-<p>Output file: <i>../output/lotic_standardized_metabolism.rds</i></p>
 <p>The final dataset contains the following columns:</p>
 <ul>
-<li><strong>Date:</strong> Date in YYYY-MM-DD format</li>
-<li><strong>U_ID:</strong> Unique date identifier (format as year + DOY)</li>
-<li><strong>Year:</strong> Year</li>
-<li><strong>DOY:</strong> Day of year (1 to 365 or 366)</li>
-<li><strong>GPP_raw:</strong> Stream GPP estimates (g O2 m<sup>-2</sup> d<sup>-1</sup>) from Appling et al. (2018), raw data</li>
-<li><strong>ER_raw:</strong> Stream ER estimates (g O2 m<sup>-2</sup> d<sup>-1</sup>) from Appling et al. (2018), raw data</li>
-<li><strong>GPP:</strong> Stream GPP estimates (g O2 m<sup>-2</sup> d<sup>-1</sup>) from Appling et al. (2018), negative values replaced with NA</li>
-<li><strong>ER:</strong> Stream ER estimates (g O2 m<sup>-2</sup> d<sup>-1</sup>) from Appling et al. (2018), positive values replaced with NA</li>
-<li><strong>K600:</strong> Model estimate of K600, the mean reaeration rate coefficient, scaled to a Schmidt number of 600, for this date. Value is the median of the post warmup MCMC distribution</li>
-<li><strong>DO.obs:</strong> Mean dissolved oxygen concentration (mg O2 L<sup>-1</sup>) for the date (4am to 3:59am)</li>
-<li><strong>DO.sat:</strong> Mean theoretical saturation concentration (mg O2 L<sup>-1</sup>) for the date (4am to 3:59am)</li>
-<li><strong>temp.water:</strong> Mean water temperature (degreees C) for the date (4am to 3:59pm)</li>
-<li><strong>discharge:</strong> Mean discharge (m<sup>3</sup> s<sup>-1</sup>) for the date (4am to 3:59pm)</li>
-<li><strong>PAR_sum:</strong> Daily sum of incoming above canopy PAR (mol m<sup>-2</sup> d<sup>-1</sup>)</li>
-<li><strong>Stream_PAR_sum:</strong> Daily sum of PAR estimated at the stream surface (mol m<sup>-2</sup> d<sup>-1</sup>)</li>
-<li><strong>LAI_proc:</strong> MODIS LAI data that has been processed and gap-filled (m<sup>2</sup> m<sup>-2</sup>)</li>
+<li><strong><span style="color:#009688">“Date”:</span></strong> Date in YYYY-MM-DD format</li>
+<li><strong><span style="color:#009688">“U_ID”:</span></strong> Unique date identifier (format as year + DOY)</li>
+<li><strong><span style="color:#009688">“Year”:</span></strong> Year</li>
+<li><strong><span style="color:#009688">“DOY”:</span></strong> Day of year (1 to 365 or 366)</li>
+<li><strong><span style="color:#009688">“GPP_raw”:</span></strong> Stream GPP estimates (g O2 m<sup>-2</sup> d<sup>-1</sup>) from Appling et al. (2018), raw data</li>
+<li><strong><span style="color:#009688">“ER_raw”:</span></strong> Stream ER estimates (g O2 m<sup>-2</sup> d<sup>-1</sup>) from Appling et al. (2018), raw data</li>
+<li><strong><span style="color:#009688">“GPP”:</span></strong> Stream GPP estimates (g O2 m<sup>-2</sup> d<sup>-1</sup>) from Appling et al. (2018), negative values replaced with NA</li>
+<li><strong><span style="color:#009688">“ER”:</span></strong> Stream ER estimates (g O2 m<sup>-2</sup> d<sup>-1</sup>) from Appling et al. (2018), positive values replaced with NA</li>
+<li><strong><span style="color:#009688">“K600”:</span></strong> Model estimate of K600, the mean reaeration rate coefficient, scaled to a Schmidt number of 600, for this date. Value is the median of the post warmup MCMC distribution</li>
+<li><strong><span style="color:#009688">“DO.obs”:</span></strong> Mean dissolved oxygen concentration (mg O2 L<sup>-1</sup>) for the date (4am to 3:59am)</li>
+<li><strong><span style="color:#009688">“DO.sat”:</span></strong> Mean theoretical saturation concentration (mg O2 L<sup>-1</sup>) for the date (4am to 3:59am)</li>
+<li><strong><span style="color:#009688">“temp.water”:</span></strong> Mean water temperature (degreees C) for the date (4am to 3:59pm)</li>
+<li><strong><span style="color:#009688">“discharge”:</span></strong> Mean discharge (m<sup>3</sup> s<sup>-1</sup>) for the date (4am to 3:59pm)</li>
+<li><strong><span style="color:#009688">“PAR_sum”:</span></strong> Daily sum of incoming above canopy PAR (mol m<sup>-2</sup> d<sup>-1</sup>)</li>
+<li><strong><span style="color:#009688">“Stream_PAR_sum”:</span></strong> Daily sum of PAR estimated at the stream surface (mol m<sup>-2</sup> d<sup>-1</sup>)</li>
+<li><strong><span style="color:#009688">“LAI_proc”:</span></strong> MODIS LAI data that has been processed and gap-filled (m<sup>2</sup> m<sup>-2</sup>)</li>
 </ul>
-<p><font size="5">Basic site information</font></p>
+<p><font size="5">Basic site information ((<i><span style="color:#BB1AA5">lotic_site_info_full</span></i>))</font></p>
 <ul>
-<li><strong>Site_ID:</strong> Unique site identifier</li>
-<li><strong>Name:</strong> Site long name</li>
-<li><strong>Source:</strong> Site data source</li>
-<li><strong>Lat:</strong> Site Latitude</li>
-<li><strong>Lon:</strong> Site Longitude</li>
-<li><strong>epsg_crs:</strong> Site coordinate reference system as EPSG code</li>
-<li><strong>COMID:</strong> NHDPlus_v2 reach COMID</li>
-<li><strong>VPU:</strong> Vector processing unit</li>
-<li><strong>StreamOrde:</strong> Stream order (from NHDPlus_v2 flowlines)</li>
-<li><strong>Azimuth:</strong> Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.</li>
-<li><strong>Width:</strong> Channel width (m)</li>
-<li><strong>TH:</strong> Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from <a href="https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub">Potapov et al. (2021)</a></li>
+<li><strong><span style="color:#009688">“Site_ID”:</span></strong> Unique site identifier</li>
+<li><strong><span style="color:#009688">“Name”:</span></strong> Site long name</li>
+<li><strong><span style="color:#009688">“Source”:</span></strong> Site data source</li>
+<li><strong><span style="color:#009688">“Lat”:</span></strong> Site Latitude</li>
+<li><strong><span style="color:#009688">“Lon”:</span></strong> Site Longitude</li>
+<li><strong><span style="color:#009688">“epsg_crs”:</span></strong> Site coordinate reference system as EPSG code</li>
+<li><strong><span style="color:#009688">“COMID”:</span></strong> NHDPlus_v2 reach COMID</li>
+<li><strong><span style="color:#009688">“VPU”:</span></strong> Vector processing unit</li>
+<li><strong><span style="color:#009688">“StreamOrde”:</span></strong> Stream order (from NHDPlus_v2 flowlines)</li>
+<li><strong><span style="color:#009688">“Azimuth”:</span></strong> Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.</li>
+<li><strong><span style="color:#009688">“Width”:</span></strong> Channel width (m)</li>
+<li><strong><span style="color:#009688">“TH”:</span></strong> Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from <a href="https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub">Potapov et al. (2021)</a></li>
 </ul>
 <hr />
 </div>
@@ -378,47 +367,47 @@ pre code {
 <hr />
 <p><font size="6">Preparation of standardized terrestrial metabolism data</font></p>
 <p>The FLUXNET2015 dataset contains data at multiple temporal resolutions. We compiled both daily data and annual data provided within the FLUXNET2015 dataset.</p>
-<div id="compile-daily-fluxnet-data" class="section level3">
-<h3>1. Compile daily FLUXNET data</h3>
+<div id="compile-daily-fluxnet-data-fluxnet_standardized_full" class="section level3">
+<h3>1. Compile daily FLUXNET data (<i><span style="color:#BB1AA5">fluxnet_standardized_full</span></i>)</h3>
 <p>FLUXNET 2015 daily data was compiled into a similar standardized format as the lotic sites using <span style="color:SlateBlue"><strong>Lotic_standardized_metabolism.R</strong></span>. At this point all negative GPP and positive ER values were replaced with NA (columns GPP and ER) but the raw data was retained (columns GPP_raw and ER_raw). Important to note though is that some associated environmental variables are reported as daily means rather than sums (for example precip or SW), and we would advise against comparing the environmental data from the lotic and terrestrial sites. Please see individual column descriptions below for more detailed information.</p>
-<p>Output file: <i>../output/fluxnet_standardized.rds</i></p>
 <p>The final dataset contains the following columns:</p>
 <ul>
-<li><strong>Date:</strong> Date in YYYY-MM-DD format</li>
-<li><strong>U_ID:</strong> Unique date identifier (format as year + DOY)</li>
-<li><strong>Year:</strong> Year</li>
-<li><strong>DOY:</strong> Day of year (1:365 or 366)</li>
-<li><strong>GPP_raw:</strong> FLUXNET GPP estimates (g C m<sup>-2</sup> d<sup>-1</sup>) “GPP_NT_VUT_REF”, raw data</li>
-<li><strong>ER_raw:</strong> FLUXNET ER estimates (g C m<sup>-2</sup> d<sup>-1</sup>) &quot;RECO_NT_VUT_REF, raw data</li>
-<li><strong>GPP:</strong> FLUXNET GPP estimates (g C m<sup>-2</sup> d<sup>-1</sup>) “GPP_NT_VUT_REF”, negative values replaced with NA</li>
-<li><strong>ER:</strong> FLUXNET ER estimates (g C m<sup>-2</sup> d<sup>-1</sup>) &quot;RECO_NT_VUT_REF, positive values replaced with NA</li>
-<li><strong>Net:</strong> FLUXNET NEE (changed to NEP by * -1) “NEE_VUT_REF”</li>
-<li><strong>Temp:</strong> Average air temperature from half-hourly data (degrees C)</li>
-<li><strong>Precip:</strong> Average precipition from half-hourly data (mm)</li>
-<li><strong>VPD:</strong> Average vapor pressure deficit from half-hourly data (hPa)</li>
-<li><strong>SW:</strong> Average incoming shortwave radiation from half-hourly data (W m^-2)</li>
+<li><strong><span style="color:#009688">“Date”:</span></strong> Date in YYYY-MM-DD format</li>
+<li><strong><span style="color:#009688">“U_ID”:</span></strong> Unique date identifier (format as year + DOY)</li>
+<li><strong><span style="color:#009688">“Year”:</span></strong> Year</li>
+<li><strong><span style="color:#009688">“DOY”:</span></strong> Day of year (1:365 or 366)</li>
+<li><strong><span style="color:#009688">“GPP_raw”:</span></strong> FLUXNET GPP estimates (g C m<sup>-2</sup> d<sup>-1</sup>) “GPP_NT_VUT_REF”, raw data</li>
+<li><strong><span style="color:#009688">“ER_raw”:</span></strong> FLUXNET ER estimates (g C m<sup>-2</sup> d<sup>-1</sup>) &quot;RECO_NT_VUT_REF, raw data</li>
+<li><strong><span style="color:#009688">“GPP”:</span></strong> FLUXNET GPP estimates (g C m<sup>-2</sup> d<sup>-1</sup>) “GPP_NT_VUT_REF”, negative values replaced with NA</li>
+<li><strong><span style="color:#009688">“ER”:</span></strong> FLUXNET ER estimates (g C m<sup>-2</sup> d<sup>-1</sup>) &quot;RECO_NT_VUT_REF, positive values replaced with NA</li>
+<li><strong><span style="color:#009688">“Net”:</span></strong> FLUXNET NEE (changed to NEP by * -1) “NEE_VUT_REF”</li>
+<li><strong><span style="color:#009688">“Temp”:</span></strong> Average air temperature from half-hourly data (degrees C)</li>
+<li><strong><span style="color:#009688">“Precip”:</span></strong> Average precipition from half-hourly data (mm)</li>
+<li><strong><span style="color:#009688">“VPD”:</span></strong> Average vapor pressure deficit from half-hourly data (hPa)</li>
+<li><strong><span style="color:#009688">“SW”:</span></strong> Average incoming shortwave radiation from half-hourly data (W m^-2)</li>
 </ul>
 </div>
-<div id="compile-annual-fluxnet-data" class="section level3">
-<h3>2. Compile annual FLUXNET data</h3>
+<div id="compile-annual-fluxnet-data-fluxnet_annual" class="section level3">
+<h3>2. Compile annual FLUXNET data (<i><span style="color:#BB1AA5">fluxnet_annual</span></i>)</h3>
 <p>Annual productivity data is already compiled and provided by FLUXNET. This data was compiled here using <span style="color:SlateBlue"><strong>FLUXNET_annual_compile.R</strong></span>.</p>
-<p>Output file: <i>../output/fluxnet_standardized.rds</i></p>
 <p>The final dataset contains the following columns:</p>
 <ul>
-<li><strong>Year:</strong> Year</li>
-<li><strong>GPP:</strong> FLUXNET annual GPP (sum from daily estimates) (g C m<sup>-2</sup> y<sup>-1</sup>) “GPP_NT_VUT_REF”. Gross Primary Production, from Nighttime partitioning method, reference version selected from GPP versions using a model efficiency approach.</li>
-<li><strong>ER:</strong> FLUXNET annual ER (sum from daily estimates) (g C m<sup>-2</sup> d<sup>-y</sup>) “RECO_NT_VUT_REF”. Ecosystem Respiration, from Nighttime partitioning method, reference selected from RECO versions using a model efficiency approach.</li>
-<li><strong>Net:</strong> FLUXNET NEE (changed to NEP by * -1) “NEE_VUT_REF”. I derived this from data of this description:Net Ecosystem Exchange, using Variable Ustar Threshold (VUT) for each year, reference selected on the basis of the model efficiency.</li>
-<li><strong>Temp:</strong> Average air temperature from daily data (degrees C)</li>
-<li><strong>Precip:</strong> Average precipition from daily data (mm)</li>
-<li><strong>VPD:</strong> Average vapor pressure deficit from daily data (hPa)</li>
-<li><strong>SW:</strong> Average incoming shortwave radiation from daily data (W m^-2)</li>
+<li><strong><span style="color:#009688">“Year”:</span></strong> Year</li>
+<li><strong><span style="color:#009688">“GPP”:</span></strong> FLUXNET annual GPP (sum from daily estimates) (g C m<sup>-2</sup> y<sup>-1</sup>) “GPP_NT_VUT_REF”. Gross Primary Production, from Nighttime partitioning method, reference version selected from GPP versions using a model efficiency approach.</li>
+<li><strong><span style="color:#009688">“ER”:</span></strong> FLUXNET annual ER (sum from daily estimates) (g C m<sup>-2</sup> d<sup>-y</sup>) “RECO_NT_VUT_REF”. Ecosystem Respiration, from Nighttime partitioning method, reference selected from RECO versions using a model efficiency approach.</li>
+<li><strong><span style="color:#009688">“Net”:</span></strong> FLUXNET NEE (changed to NEP by * -1) “NEE_VUT_REF”. I derived this from data of this description:Net Ecosystem Exchange, using Variable Ustar Threshold (VUT) for each year, reference selected on the basis of the model efficiency.</li>
+<li><strong><span style="color:#009688">“Temp”:</span></strong> Average air temperature from daily data (degrees C)</li>
+<li><strong><span style="color:#009688">“Precip”:</span></strong> Average precipition from daily data (mm)</li>
+<li><strong><span style="color:#009688">“VPD”:</span></strong> Average vapor pressure deficit from daily data (hPa)</li>
+<li><strong><span style="color:#009688">“SW”:</span></strong> Average incoming shortwave radiation from daily data (W m^-2)</li>
 </ul>
 </div>
-<div id="get-annual-modis-npp-data" class="section level3">
-<h3>3. Get annual MODIS NPP data</h3>
+<div id="basic-fluxnet-site-information-fluxnet_basic_info" class="section level3">
+<h3>3. Basic FLUXNET site information (<i><span style="color:#BB1AA5">fluxnet_basic_info</span></i>)</h3>
+</div>
+<div id="get-annual-modis-npp-data-modis_annual_npp" class="section level3">
+<h3>3. Get annual MODIS NPP data (<i><span style="color:#BB1AA5">modis_annual_NPP</span></i>)</h3>
 <p>Annual MODIS NPP data (g C m<sup>-2</sup> y<sup>-1</sup>) (MOD17A3HGF v006) was collected for each site-year of data through a combination of an AppEEARS request and downloading of single pixels. Similar to the LAI data, if a site was missing NPP data from the AppEEARS request, then annual NPP was downloaded for a 1km buffer around the site using the <strong>MODISTools</strong> package and the mean value was calculated. This was done for each site-year of missing data in the AppEEARS request. The annual MODIS NPP data was also converted from kg C m<sup>-2</sup> y<sup>-1</sup> to g C m<sup>-2</sup> y<sup>-1</sup> to provide consistent units across datasets.</p>
-<p>Output file: <i>../output/MODIS_annual_NPP.rds</i></p>
 </div>
 </div>
 </div>
