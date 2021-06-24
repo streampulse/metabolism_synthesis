@@ -19,6 +19,8 @@ dir.create('figures',
            showWarnings = FALSE)
 dir.create('export_datasets',
            showWarnings = FALSE)
+dir.create('output_data/spatial',
+           showWarnings = FALSE)
 
 #choose colors for plot categories
 fnetcolor = 'sienna4'
@@ -29,7 +31,8 @@ ercolor = 'sienna'
 source('plot_helpers.R')
 
 # 1: load site data that will be used in plots (as opposed to stats) ####
-site_data_1 = readRDS('output/synthesis_site_metrics.rds') %>%
+
+site_data_1 = readRDS('output_data/lotic_site_info_filtered.rds') %>%
     as_tibble() %>%
     select(sitecode = Site_ID, Stream_PAR_sum, Disch_ar1, MOD_ann_NPP)
 
@@ -96,13 +99,10 @@ readRDS('output/FLUXNET_site_metrics.rds') %>%
 
 # 2: load and prepare fluxnet data ####
 
-fnet_diag = readRDS('output/FLUXNET_yearly_diagnostics.rds') %>%
-    as_tibble()
-
 restricted_use_sites = c("RU-Sam", "RU-SkP", "RU-Tks", "RU-Vrk", "SE-St1", "ZA-Kru")
 
 #summarize by site, starting with a dataset that's summarized by site-year
-fnet_ann = readRDS('output/FLUXNET_filtered.rds')
+fnet_ann = readRDS('output_data/fluxnet_filtered_metabolism.rds')
 fnet_names = names(fnet_ann)
 
 for(i in 1:length(fnet_ann)){
@@ -127,7 +127,7 @@ fnet_full = Reduce(bind_rows, fnet_ann) %>%
 #     rename(GPP_site_mean = GPP, ER_site_mean = ER) %>%
 #     mutate(NEP_site_mean = GPP_site_mean + ER_site_mean)
 
-fnet_site = readRDS('output/FLUXNET_site_metrics.rds') %>%
+fnet_site = readRDS('output_data/fluxnet_site_info_filtered.rds') %>%
     as_tibble() %>%
     select(sitecode = Site_ID,
            GPP_site_mean = ann_GPP,
@@ -152,7 +152,7 @@ fnet_lips = fnet_full %>%
 
 # 3. load and prepare streampulse data ####
 
-sp_list = readRDS('output/synthesis_gap_filled.rds')
+sp_list = readRDS('output_data/lotic_gap_filled.rds')
 
 # #REPLACED BY NEXT CHUNK. RESULTS VERIFIED IDENTICAL
 #
@@ -281,7 +281,7 @@ fnet_high_cov_bool = fnet_site$sitecode %in% fnet_high_cov_sites
 
 # 5: (skip if only plotting) generate site data that will be used for stats ####
 
-site_data_2 = readRDS('output/lotic_site_info.rds') %>%
+site_data_2 = readRDS('output_data/lotic_site_info_filtered.rds') %>%
     as_tibble() %>%
     select(sitecode = Site_ID,
            lat = Lat,
@@ -289,88 +289,91 @@ site_data_2 = readRDS('output/lotic_site_info.rds') %>%
            epsg_crs, COMID, VPU)
 
 #get reach proportional distance for as many sites as possible
+got_reach_proportions <- file.exists('output_data/spatial/reach_proportion_reference.rds')
 
-if(file.exists('output/spatial/reach_prop_col.rds')){
-    site_data_2$reach_proportion = readRDS('output/spatial/reach_prop_col.rds')
+if(got_reach_proportions){
+    site_data_2$reach_proportion = readRDS('output_data/spatial/reach_proportion_reference.rds')
 } else {
     site_data_2$reach_proportion = NA
-}
+    remake_reach_proportion_column = FALSE
+    errflag = FALSE
+    reach_proportions_needed = which(is.na(site_data_2$reach_proportion))
+    for(i in reach_proportions_needed){
 
-remake_reach_proportion_column = FALSE
-errflag = FALSE
-ni = nrow(site_data_2)
-for(i in 1:ni){
+        print(paste(i, length(reach_proportions_needed), sep = '/'))
 
-    print(paste(i, ni, sep = '/'))
+        if(is.na(site_data_2$reach_proportion[i]) || remake_reach_proportion_column){
 
-    if(is.na(site_data_2$reach_proportion[i]) || remake_reach_proportion_column){
+            tryCatch({
+                rp = calc_reach_prop(VPU = site_data_2$VPU[i],
+                                     COMID = site_data_2$COMID[i],
+                                     lat = site_data_2$lat[i],
+                                     long = site_data_2$lon[i],
+                                     CRS = site_data_2$epsg_crs[i],
+                                     quiet = TRUE,
+                                     force_redownload = FALSE)
+            }, error = function(e) {print('error'); errflag <<- TRUE} )
 
-        tryCatch({
-            rp = calc_reach_prop(VPU = site_data_2$VPU[i],
-                                 COMID = site_data_2$COMID[i],
-                                 lat = site_data_2$lat[i],
-                                 long = site_data_2$lon[i],
-                                 CRS = site_data_2$epsg_crs[i],
-                                 quiet = TRUE,
-                                 force_redownload = FALSE)
-        }, error = function(e) {print('error'); errflag <<- TRUE} )
+            if(errflag){
+                errflag = FALSE
+                site_data_2$reach_proportion[i] = NA
+                next
+            }
 
-        if(errflag){
-            errflag = FALSE
-            site_data_2$reach_proportion[i] = NA
+        } else {
+            message('already got this one. set remake_reach_proportion_column = TRUE to get it again.')
             next
         }
 
-    } else {
-        message('already got this one. set remake_reach_proportion_column = TRUE to get it again.')
-        next
+        site_data_2$reach_proportion[i] = rp
     }
 
-    site_data_2$reach_proportion[i] = rp
+    saveRDS(site_data_2$reach_proportion, 'output_data/spatial/reach_proportion_reference.rds')
 }
 
-#(save progress)
-saveRDS(site_data_2$reach_proportion, 'output/spatial/reach_prop_col.rds')
-site_data_2$reach_proportion = readRDS('output/spatial/reach_prop_col.rds')
 site_data_2 = filter(site_data_2, ! is.na(COMID))
 
-#construct list of DSN=component pairs to acquire. see NHDPlus docs for more.
-setlist = list('NHDPlusAttributes'='PlusFlowlineVAA',
-               'NHDPlusAttributes'='ElevSlope')
+#NHDPlusV2 stuff (will be skipped if output_data/spatial/nhdplusv2_data.rds exists)
 
-#retrieve NHDPlusV2 data
-nhdplusv2_data = nhdplusv2_bulk(site_data_2, setlist, quiet=TRUE)
+if(! file.exists('output_data/spatial/nhdplusv2_data.rds')){
 
-#nhd variable names do not have consistent naming conventions. sometimes they're
-#all caps; other times camel case. here's a crude way to deal with that.
-colnames(nhdplusv2_data) = toupper(colnames(nhdplusv2_data))
-nhdplusv2_data = nhdplusv2_data[, ! duplicated(colnames(nhdplusv2_data))]
+    #construct list of DSN=component pairs to acquire. see NHDPlus docs for more.
+    setlist = list('NHDPlusAttributes'='PlusFlowlineVAA',
+                   'NHDPlusAttributes'='ElevSlope')
 
-#choose variables to join; filter dupes
-nhdplusv2_data = select(nhdplusv2_data, COMID, STREAMORDE, FROMMEAS, TOMEAS,
-                        SLOPE, REACHCODE, AREASQKM, TOTDASQKM, MAXELEVSMO,
-                        MINELEVSMO)
+    #retrieve NHDPlusV2 data
+    nhdplusv2_data = nhdplusv2_bulk(site_data_2, setlist, quiet=TRUE)
 
-#(save progress again)
-saveRDS(nhdplusv2_data, 'output/spatial/nhdplusv2_data.rds')
-nhdplusv2_data = readRDS('output/spatial/nhdplusv2_data.rds') %>%
-    as_tibble() %>%
-    group_by(COMID) %>%
-    summarize_all(first) %>%
-    ungroup()
+    #nhd variable names do not have consistent naming conventions. sometimes they're
+    #all caps; other times camel case. here's a crude way to deal with that.
+    colnames(nhdplusv2_data) = toupper(colnames(nhdplusv2_data))
+    nhdplusv2_data = nhdplusv2_data[, ! duplicated(colnames(nhdplusv2_data))]
 
-site_data_2 = left_join(site_data_2, nhdplusv2_data, by='COMID')
+    #choose variables to join; filter dupes
+    nhdplusv2_data = nhdplusv2_data %>%
+        as_tibble() %>%
+        select(COMID, STREAMORDE, FROMMEAS, TOMEAS,
+               SLOPE, REACHCODE, AREASQKM, TOTDASQKM, MAXELEVSMO,
+               MINELEVSMO)
+        group_by(COMID) %>%
+        summarize_all(first) %>%
+        ungroup()
 
-#correct catchment area (AREASQKM) based on where each site falls within its reach.
-#use this to correct watershed area (TOTDASQKM) and to determine an areal
-#correction factor that can be multiplied with any areal summary data.
-site_data_2$AREASQKM_corr = round(site_data_2$AREASQKM * site_data_2$reach_proportion, 5)
-site_data_2$TOTDASQKM_corr = site_data_2$TOTDASQKM - (site_data_2$AREASQKM - site_data_2$AREASQKM_corr)
-site_data_2$areal_corr_factor = site_data_2$TOTDASQKM_corr / site_data_2$TOTDASQKM
+    site_data_2 = left_join(site_data_2, nhdplusv2_data, by='COMID')
 
-#final
-# saveRDS(site_data_2, 'output/spatial/site_data2.rds')
-site_data_2 = readRDS('output/spatial/site_data2.rds')
+    #correct catchment area (AREASQKM) based on where each site falls within its reach.
+    #use this to correct watershed area (TOTDASQKM) and to determine an areal
+    #correction factor that can be multiplied with any areal summary data.
+    site_data_2$AREASQKM_corr = round(site_data_2$AREASQKM * site_data_2$reach_proportion, 5)
+    site_data_2$TOTDASQKM_corr = site_data_2$TOTDASQKM - (site_data_2$AREASQKM - site_data_2$AREASQKM_corr)
+    site_data_2$areal_corr_factor = site_data_2$TOTDASQKM_corr / site_data_2$TOTDASQKM
+
+    #save progress
+    saveRDS(site_data_2, 'output_data/spatial/nhdplusv2_data.rds')
+
+} else {
+    site_data_2 = readRDS('output_data/spatial/nhdplusv2_data.rds')
+}
 
 # 6: (Figure 1) GPP-ER biplot and dist plots ####
 
@@ -866,17 +869,53 @@ bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=TRUE, outfile='figure
 
 # 10: export regression dataset ####
 
-diag = as_tibble(readRDS('output/lotic_yearly_diagnostics.rds'))
+# diag = as_tibble(readRDS('output/lotic_yearly_diagnostics.rds'))
+#
+# coverage_tb = diag %>%
+#     rename(sitecode = Site_ID) %>%
+#     filter(paste(sitecode, Year) %in% paste(sp_full$sitecode, sp_full$Year)) %>%
+#     group_by(sitecode) %>%
+#     summarize(
+#         nyear = n(),
+#         coverage = round(sum(num_days) / (nyear * 365),
+#                          digits = 2)) %>%
+#     ungroup()
 
-coverage_tb = diag %>%
-    rename(sitecode = Site_ID) %>%
-    filter(paste(sitecode, Year) %in% paste(sp_full$sitecode, sp_full$Year)) %>%
+coverage_tb = sp_full %>%
     group_by(sitecode) %>%
-    summarize(
-        nyear = n(),
-        coverage = round(sum(num_days) / (nyear * 365),
-                         digits = 2)) %>%
-    ungroup()
+    summarize(ndays = sum(! is.na(GPP_C)),
+              nyears = length(unique(Year)),
+              coverage = round(ndays / (nyears * 365),
+                               digits = 2),
+              .groups = 'drop')
+
+# pct_diffs = full_join(cc2, zz2, by='sitecode') %>%
+#     mutate(pct_diff = (coverage.x / coverage.y - 1) * 100)
+#HERE: DON'T EVEN NEED TO REVERT GIT. JUST COMPARE output_data/lotic_gap_filled and output/synthesis_gap_filled
+# qq = readRDS('output/synthesis_gap_filled.rds')
+# sp_names = names(qq)
+# for(i in 1:length(qq)){
+#     qq[[i]]$sitecode = sp_names[i]
+# }
+# qqq = Reduce(bind_rows, qq) %>%
+#     as_tibble() %>%
+#     select(sitecode, Date, Year, DOY, GPP_C, ER_C, GPP_C_filled, ER_C_filled) %>%
+#     arrange(sitecode, Date)
+#
+# qq2 = qqq %>%
+#     group_by(sitecode) %>%
+#     summarize(ndays = sum(! is.na(GPP_C)),
+#               nyears = length(unique(Year)),
+#               coverage = round(ndays / (nyears * 365),
+#                                digits = 2),
+#               .groups = 'drop')
+# pct_diffs2 = full_join(cc2, zz2, by='sitecode') %>%
+#     full_join(select(qq2, sitecode, coverage), by='sitecode') %>%
+#     mutate(pct_diff1 = (coverage.x / coverage.y - 1) * 100,
+#            pct_diff2 = (coverage.x / coverage - 1) * 100,
+#            pct_diff3 = (coverage / coverage.y - 1) * 100)
+
+
 
 width = readRDS('~/git/streampulse/metab_synthesis/data/lotic_streamlight_params.rds') %>%
     as_tibble() %>%
