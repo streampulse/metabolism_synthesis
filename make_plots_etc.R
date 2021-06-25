@@ -34,7 +34,13 @@ source('plot_helpers.R')
 
 site_data_1 = readRDS('output_data/lotic_site_info_filtered.rds') %>%
     as_tibble() %>%
-    select(sitecode = Site_ID, Stream_PAR_sum, Disch_ar1, MOD_ann_NPP)
+    select(sitecode = Site_ID,
+           # name = Name,
+           # order = StreamOrde,
+           # azimuth = Azimuth,
+           # width = Width,
+           # TH,
+           Stream_PAR_sum, Disch_ar1, MOD_ann_NPP)
 
 # OBSOLETE: load and prepare fluxnet data (highlighting discrepancy) ####
 
@@ -331,9 +337,7 @@ if(got_reach_proportions){
     saveRDS(site_data_2$reach_proportion, 'output_data/spatial/reach_proportion_reference.rds')
 }
 
-site_data_2 = filter(site_data_2, ! is.na(COMID))
-
-#NHDPlusV2 stuff (will be skipped if output_data/spatial/nhdplusv2_data.rds exists)
+#retrieve NHDPlusV2 data (will be skipped if output_data/spatial/nhdplusv2_data.rds exists)
 
 if(! file.exists('output_data/spatial/nhdplusv2_data.rds')){
 
@@ -371,8 +375,6 @@ if(! file.exists('output_data/spatial/nhdplusv2_data.rds')){
     #save progress
     saveRDS(site_data_2, 'output_data/spatial/nhdplusv2_data.rds')
 
-} else {
-    site_data_2 = readRDS('output_data/spatial/nhdplusv2_data.rds')
 }
 
 # 6: (Figure 1) GPP-ER biplot and dist plots ####
@@ -876,8 +878,9 @@ bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=TRUE, outfile='figure
 #     filter(paste(sitecode, Year) %in% paste(sp_full$sitecode, sp_full$Year)) %>%
 #     group_by(sitecode) %>%
 #     summarize(
-#         nyear = n(),
-#         coverage = round(sum(num_days) / (nyear * 365),
+#         nyears = n(),
+#         ndays = sum(num_days),
+#         coverage = round(ndays / (nyears * 365),
 #                          digits = 2)) %>%
 #     ungroup()
 
@@ -889,42 +892,37 @@ coverage_tb = sp_full %>%
                                digits = 2),
               .groups = 'drop')
 
-# pct_diffs = full_join(cc2, zz2, by='sitecode') %>%
-#     mutate(pct_diff = (coverage.x / coverage.y - 1) * 100)
-#HERE: DON'T EVEN NEED TO REVERT GIT. JUST COMPARE output_data/lotic_gap_filled and output/synthesis_gap_filled
 # qq = readRDS('output/synthesis_gap_filled.rds')
 # sp_names = names(qq)
 # for(i in 1:length(qq)){
 #     qq[[i]]$sitecode = sp_names[i]
 # }
-# qqq = Reduce(bind_rows, qq) %>%
+# Reduce(bind_rows, qq) %>%
 #     as_tibble() %>%
 #     select(sitecode, Date, Year, DOY, GPP_C, ER_C, GPP_C_filled, ER_C_filled) %>%
-#     arrange(sitecode, Date)
-#
-# qq2 = qqq %>%
+#     arrange(sitecode, Date) %>%
 #     group_by(sitecode) %>%
 #     summarize(ndays = sum(! is.na(GPP_C)),
 #               nyears = length(unique(Year)),
 #               coverage = round(ndays / (nyears * 365),
 #                                digits = 2),
-#               .groups = 'drop')
-# pct_diffs2 = full_join(cc2, zz2, by='sitecode') %>%
-#     full_join(select(qq2, sitecode, coverage), by='sitecode') %>%
-#     mutate(pct_diff1 = (coverage.x / coverage.y - 1) * 100,
-#            pct_diff2 = (coverage.x / coverage - 1) * 100,
-#            pct_diff3 = (coverage / coverage.y - 1) * 100)
+#               .groups = 'drop') %>%
+#     full_join(coverage_tb, by='sitecode') %>%
+#     mutate(pct_diff1 = (coverage.y / coverage.x - 1) * 100,
+#            pct_days = (ndays.y / ndays.x -1) * 100) %>%
+#     select(sitecode, ndays.x, ndays.y, nyears.x, nyears.y, coverage.x, coverage.y, pct_days, pct_diff1) %>%
+#     print(n=100)
 
-
-
-width = readRDS('~/git/streampulse/metab_synthesis/data/lotic_streamlight_params.rds') %>%
+#---#
+# width = readRDS('~/git/streampulse/metab_synthesis/data/lotic_streamlight_params.rds') %>%
+#     as_tibble() %>%
+#     select(sitecode = Site_ID, width = Width)
+# site_data_A = readRDS('output/synthesis_site_metrics.rds') %>%
+site_data_A = readRDS('output_data/lotic_site_info_filtered.rds') %>%
     as_tibble() %>%
-    select(sitecode = Site_ID, width = Width)
-site_data_A = readRDS('output/synthesis_site_metrics.rds') %>%
-    as_tibble() %>%
-    rename(sitecode = Site_ID) %>%
-    full_join(width, by = 'sitecode')
-site_data_B = readRDS('output/spatial/site_data2.rds') %>%
+    rename(sitecode = Site_ID)
+    # full_join(width, by = 'sitecode')
+site_data_B = readRDS('output_data/spatial/nhdplusv2_data.rds') %>%
     select(sitecode, lat, lon, stream_order = STREAMORDE, slope = SLOPE,
            ws_area_km2 = TOTDASQKM_corr)
 site_data = full_join(site_data_A, site_data_B)
