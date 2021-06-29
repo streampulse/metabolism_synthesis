@@ -42,8 +42,11 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"VPU":</span>** Vector processing unit
 * **<span style="color:#009688">"StreamOrde":</span>** Stream order (from NHDPlus_v2 flowlines)
 * **<span style="color:#009688">"Azimuth":</span>** Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.
-* **<span style="color:#009688">"Width":</span>** Channel width (m)
 * **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
+* **<span style="color:#009688">"Width":</span>** Channel width (m)
+* **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
 
 <font size="3"><i><span style="color:#00cc99">lotic_standardized_full.rds</span></i></font>
 

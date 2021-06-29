@@ -163,8 +163,7 @@ At each site, the start and end year of available metabolism data was calculated
 A more detailed set of site information for CONUS sites was obtained using <span style="color:SlateBlue">**Lotic_site_info.R**</span>.
 Sites were filtered for the CONUS so they could be associated with various standardized products. After CONUS sites were selected a few things were done at this step:
 
-- Where possible, each site was associated with a NHDPlus_v2 COMID through the use of the **nhdplusTools** package and the simple wrapper functions <span style="color:orange">**comid_from_point**</span>. Once sites were assigned a COMID, they could be associated with other datasets. Because NHDPlus_v2 flowlines are only medium resolution, smaller streams may not actually fall on a flowline and the derived COMID may only be approximate.
-- Similarly, the vector processing unit was associated with each site using the simple wrapper function <span style="color:orange">**vpu_from_point.R**</span>.
+- Where possible, each site was associated with a NHDPlus_v2 COMID through the use of the **nhdplusTools** package (LAUREN ADD INFORMATION HERE). Once sites were assigned a COMID, they could be associated with other datasets. Because NHDPlus_v2 flowlines are only medium resolution, smaller streams may not actually fall on a flowline and the derived COMID may only be approximate.
 - Stream order information for each reach was pulled from the NHDplus_v2 flowlines based on COMID. 
 
 ```{r Advanced site information, include = FALSE, eval = FALSE}
@@ -362,12 +361,17 @@ full_final_table <-function(){
   params <- readRDS(here::here("output", "lotic_streamlight_params.rds"))
   
 #Merge with select site parameters to create a set of basic site information 
-  lotic_site_info_full <- merge(
+  lotic_site_info_full2 <- merge(
     lsi, 
-    params[, c("Site_ID", "Azimuth", "Width", "TH")],
+    params[, c("Site_ID", "Azimuth", "TH")],
     by = "Site_ID", 
     all.x = TRUE
-  )  
+  ) 
+  
+#Reorder and rename the columns
+  lotic_site_info_full <- lotic_site_info_full2[, c("Site_ID", "Name", "Source",
+    "Lat", "Lon", "epsg_crs", "COMID", "VPU", "StreamOrde","Azimuth", "TH", "Width", "Width_src", 
+    "WS_area_km2", "WS_area_src")]
   
 #Export the final output
   saveRDS(lotic_site_info_full, here::here("output", "lotic_site_info_full.rds"))
@@ -390,8 +394,11 @@ full_final_table()
 * **<span style="color:#009688">"VPU":</span>** Vector processing unit
 * **<span style="color:#009688">"StreamOrde":</span>** Stream order (from NHDPlus_v2 flowlines)
 * **<span style="color:#009688">"Azimuth":</span>** Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.
-* **<span style="color:#009688">"Width":</span>** Channel width (m)
 * **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
+* **<span style="color:#009688">"Width":</span>** Channel width (m)
+* **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
 
 
 ---

@@ -1,7 +1,7 @@
 ---
 title: "Part II: Filtering, gap-filling, and calculating metrics"
 author: "Phil Savoy"
-date: "6/21/2021"
+date: "6/28/2021"
 output: html_document
 ---
 
@@ -442,8 +442,11 @@ The output contains the following the following columns:
 * **<span style="color:#009688">"VPU":</span>** Vector processing unit
 * **<span style="color:#009688">"StreamOrde":</span>** Stream order (from NHDPlus_v2 flowlines)
 * **<span style="color:#009688">"Azimuth":</span>** Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.
-* **<span style="color:#009688">"Width":</span>** Channel width (m)
 * **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
+* **<span style="color:#009688">"Width":</span>** Channel width (m)
+* **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
 * **<span style="color:#009688">"ann_GPP_C":</span>** Mean annual cumulative stream GPP (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of GPP (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
 * **<span style="color:#009688">"upper_GPP_C":</span>** 95th percentile of daily rates of stream GPP (g C m^-2^ d^-1^).
 * **<span style="color:#009688">"ann_ER_C":</span>** Mean annual cumulative stream ER (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of ER (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
@@ -600,8 +603,11 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"VPU":</span>** Vector processing unit
 * **<span style="color:#009688">"StreamOrde":</span>** Stream order (from NHDPlus_v2 flowlines)
 * **<span style="color:#009688">"Azimuth":</span>** Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.
-* **<span style="color:#009688">"Width":</span>** Channel width (m)
 * **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
+* **<span style="color:#009688">"Width":</span>** Channel width (m)
+* **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
 
 <font size="3"><i><span style="color:#00cc99">lotic_standardized_full.rds</span></i></font>
 
@@ -644,8 +650,11 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"VPU":</span>** Vector processing unit
 * **<span style="color:#009688">"StreamOrde":</span>** Stream order (from NHDPlus_v2 flowlines)
 * **<span style="color:#009688">"Azimuth":</span>** Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.
-* **<span style="color:#009688">"Width":</span>** Channel width (m)
 * **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
+* **<span style="color:#009688">"Width":</span>** Channel width (m)
+* **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
 * **<span style="color:#009688">"ann_GPP_C":</span>** Mean annual cumulative stream GPP (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of GPP (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
 * **<span style="color:#009688">"upper_GPP_C":</span>** 95th percentile of daily rates of stream GPP (g C m^-2^ d^-1^).
 * **<span style="color:#009688">"ann_ER_C":</span>** Mean annual cumulative stream ER (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of ER (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
@@ -695,7 +704,6 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"LAI_phase":</span>** Phase of LAI  (day of year)
 * **<span style="color:#009688">"LAI_ar1":</span>** Autoregressive lag-one correlation coefficient of daily LAI
 * **<span style="color:#009688">"MOD_ann_NPP":</span>** Mean annual MODIS NPP (g C m^-2^ y^-1^) for the concurrent period of record for stream metabolism data at a site. Annual sums of NPP (g C m^-2^ d^-y^) were available for each site year and then the mean was taken to get a mean annual rate for each site.
-
 
 <font size="3"><i><span style="color:#00cc99">lotic_gap_filled.rds</span></i></font>
 

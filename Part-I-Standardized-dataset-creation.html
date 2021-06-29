@@ -238,8 +238,7 @@ pre code {
 <h5>Get more detailed site information for CONUS sites</h5>
 <p>A more detailed set of site information for CONUS sites was obtained using <span style="color:SlateBlue"><strong>Lotic_site_info.R</strong></span>. Sites were filtered for the CONUS so they could be associated with various standardized products. After CONUS sites were selected a few things were done at this step:</p>
 <ul>
-<li>Where possible, each site was associated with a NHDPlus_v2 COMID through the use of the <strong>nhdplusTools</strong> package and the simple wrapper functions <span style="color:orange"><strong>comid_from_point</strong></span>. Once sites were assigned a COMID, they could be associated with other datasets. Because NHDPlus_v2 flowlines are only medium resolution, smaller streams may not actually fall on a flowline and the derived COMID may only be approximate.</li>
-<li>Similarly, the vector processing unit was associated with each site using the simple wrapper function <span style="color:orange"><strong>vpu_from_point.R</strong></span>.</li>
+<li>Where possible, each site was associated with a NHDPlus_v2 COMID through the use of the <strong>nhdplusTools</strong> package (LAUREN ADD INFORMATION HERE). Once sites were assigned a COMID, they could be associated with other datasets. Because NHDPlus_v2 flowlines are only medium resolution, smaller streams may not actually fall on a flowline and the derived COMID may only be approximate.</li>
 <li>Stream order information for each reach was pulled from the NHDplus_v2 flowlines based on COMID.</li>
 </ul>
 <p>Timeseries of downwelling shortwave radiation and leaf area index (LAI) were downloaded for two purposes. First, these are two of the inputs used by the <a href="https://github.com/psavoy/StreamLight"><strong>StreamLight R package</strong></a> to generate estimates of light reaching the stream surface. Second, they can be valuable in their own right to assess patterns of metabolism in regards to broad patterns in light availability or canopy cover.</p>
@@ -344,7 +343,7 @@ pre code {
 <li><strong><span style="color:#009688">“Stream_PAR_sum”:</span></strong> Daily sum of PAR estimated at the stream surface (mol m<sup>-2</sup> d<sup>-1</sup>)</li>
 <li><strong><span style="color:#009688">“LAI_proc”:</span></strong> MODIS LAI data that has been processed and gap-filled (m<sup>2</sup> m<sup>-2</sup>)</li>
 </ul>
-<p><font size="5">Basic site information ((<i><span style="color:#BB1AA5">lotic_site_info_full</span></i>))</font></p>
+<p><font size="5">Basic site information (<i><span style="color:#BB1AA5">lotic_site_info_full</span></i>)</font></p>
 <ul>
 <li><strong><span style="color:#009688">“Site_ID”:</span></strong> Unique site identifier</li>
 <li><strong><span style="color:#009688">“Name”:</span></strong> Site long name</li>
@@ -356,8 +355,11 @@ pre code {
 <li><strong><span style="color:#009688">“VPU”:</span></strong> Vector processing unit</li>
 <li><strong><span style="color:#009688">“StreamOrde”:</span></strong> Stream order (from NHDPlus_v2 flowlines)</li>
 <li><strong><span style="color:#009688">“Azimuth”:</span></strong> Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.</li>
-<li><strong><span style="color:#009688">“Width”:</span></strong> Channel width (m)</li>
 <li><strong><span style="color:#009688">“TH”:</span></strong> Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from <a href="https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub">Potapov et al. (2021)</a></li>
+<li><strong><span style="color:#009688">“Width”:</span></strong> Channel width (m)</li>
+<li><strong><span style="color:#009688">“Width_src”:</span></strong> Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)</li>
+<li><strong><span style="color:#009688">“WS_area_km2”:</span></strong> Watershed area (km <sup>-2</sup>)</li>
+<li><strong><span style="color:#009688">“WS_area_src”:</span></strong> Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)</li>
 </ul>
 <hr />
 </div>
