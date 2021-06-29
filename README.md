@@ -89,8 +89,11 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"VPU":</span>** Vector processing unit
 * **<span style="color:#009688">"StreamOrde":</span>** Stream order (from NHDPlus_v2 flowlines)
 * **<span style="color:#009688">"Azimuth":</span>** Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.
-* **<span style="color:#009688">"Width":</span>** Channel width (m)
 * **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
+* **<span style="color:#009688">"Width":</span>** Channel width (m)
+* **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
 * **<span style="color:#009688">"ann_GPP_C":</span>** Mean annual cumulative stream GPP (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of GPP (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
 * **<span style="color:#009688">"upper_GPP_C":</span>** 95th percentile of daily rates of stream GPP (g C m^-2^ d^-1^).
 * **<span style="color:#009688">"ann_ER_C":</span>** Mean annual cumulative stream ER (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of ER (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
