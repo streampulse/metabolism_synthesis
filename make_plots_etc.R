@@ -380,7 +380,7 @@ if(! file.exists('output_data/spatial/nhdplusv2_data.rds')){
         as_tibble() %>%
         select(COMID, STREAMORDE, FROMMEAS, TOMEAS,
                SLOPE, REACHCODE, AREASQKM, TOTDASQKM, MAXELEVSMO,
-               MINELEVSMO)
+               MINELEVSMO) %>%
         group_by(COMID) %>%
         summarize_all(first) %>%
         ungroup()
@@ -1142,31 +1142,31 @@ write_csv(summarized_by_site,
 
 # 12: interannual CVs ####
 
+dir.create('figures/interannual_CVs', showWarnings = FALSE)
+
 fnet_cvs = fnet_full %>%
-    mutate(NEP = GPP + ER) %>%
+    # mutate(NEP = GPP + ER) %>%
     group_by(sitecode, Year) %>%
-    summarize(across(c(GPP, ER, NEP), mean, na.rm = TRUE)) %>%
+    summarize(across(c(GPP, ER), sum, na.rm = TRUE)) %>%
     filter(n() > 3) %>%
     ungroup() %>%
     group_by(sitecode) %>%
-    summarize(across(c(GPP, ER, NEP),
+    summarize(across(c(GPP, ER),
                      ~sd(., na.rm = TRUE) / mean(., na.rm = TRUE) * 100),
               .groups = 'drop')
 
 sp_cvs = sp_full %>%
     rename(GPP = GPP_C_filled,
            ER = ER_C_filled) %>%
-    mutate(NEP = GPP + ER) %>%
+    # mutate(NEP = GPP + ER) %>%
     group_by(sitecode, Year) %>%
-    summarize(across(c(GPP, ER, NEP), mean, na.rm = TRUE)) %>%
+    summarize(across(c(GPP, ER), sum, na.rm = TRUE)) %>%
     filter(n() > 3) %>%
     ungroup() %>%
     group_by(sitecode) %>%
-    summarize(across(c(GPP, ER, NEP),
+    summarize(across(c(GPP, ER),
                      ~sd(., na.rm = TRUE) / mean(., na.rm = TRUE) * 100),
               .groups = 'drop')
-
-#--- distplots
 
 probdens2 <- function(d_sp, d_fnet, v){
 
@@ -1188,7 +1188,7 @@ probdens2 <- function(d_sp, d_fnet, v){
     # # axis(2, at=ertck_log, labels=ertck * -1, cex.axis=2.4, padj=0.2)
     # axis(1, at=tck_log, labels=tck, padj=-1.3, tick = TRUE, line=-0.2, tcl=-0.2)
 
-    mtext(v, 1, line=2)
+    mtext(paste(v), 1, line=-15)
     polygon(x=c(dens_fnet$x, rev(dens_fnet$x)),
             y=c(dens_fnet$y, rep(0, nrow(dens_fnet))),
             col=alpha(fnetcolor, alpha=0.7),
@@ -1200,13 +1200,147 @@ probdens2 <- function(d_sp, d_fnet, v){
 }
 
 jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
-     filename='figures/gpp_er_distplots.jpeg')
+     filename='figures/interannual_CVs.jpg')
 
 par(mfrow=c(2, 1), mar=c(2,1,1,1), oma=c(0, 0, 0, 0))
-
 probdens2(sp_cvs, fnet_cvs, 'GPP')
-probdens2(sp_cvs, fnet_cvs, 'ER')
-probdens2(sp_cvs, fnet_cvs, 'NEP') #???
 
+# jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
+#      filename='figures/interannual_CVs/ER.jpg')
+
+# par(mfrow=c(2, 1), mar=c(2,1,1,1), oma=c(0, 0, 0, 0))
+probdens2(sp_cvs, fnet_cvs, 'ER')
+
+dev.off()
 
 # 13: peak months ####
+
+dir.create('figures/peak_months', showWarnings = FALSE)
+
+library(lubridate)
+
+error.bars <- function(x, y, upper, lower=upper, cap.length=0.1, horiz=F,...){
+    if(length(x) != length(y) | length(y) !=length(lower) | length(lower) != length(upper))
+        stop("One or more vectors is not the same length")
+
+    if(horiz==F) {
+        arrows(x,y+upper, x, y-lower, angle=90, code=3, length=cap.length, ...)
+    } else if (horiz==T) {
+        arrows(x+upper,y, x-lower, y, angle=90, code=3, length=cap.length, ...)
+    }
+}
+
+sitemonths_sp = sp_full %>%
+    rename(GPP = GPP_C_filled,
+           ER = ER_C_filled) %>%
+    mutate(month = month(Date)) %>%
+    group_by(sitecode, Year, month) %>%
+    summarize(across(c(GPP, ER), mean, na.rm = TRUE),
+              .groups = 'drop') %>%
+    group_by(sitecode, month) %>%
+    summarize(across(c(GPP, ER), #mean, na.rm = TRUE),
+                     list(mean = ~mean(., na.rm = TRUE),
+                          sd = ~sd(., na.rm = TRUE))),
+              n = n(),
+              .groups = 'drop')
+
+sitemonths_fnet = fnet_full %>%
+    mutate(month = month(Date)) %>%
+    group_by(sitecode, Year, month) %>%
+    summarize(across(c(GPP, ER), mean, na.rm = TRUE),
+              .groups = 'drop') %>%
+    group_by(sitecode, month) %>%
+    summarize(across(c(GPP, ER), #mean, na.rm = TRUE),
+                     list(mean = ~mean(., na.rm = TRUE),
+                          sd = ~sd(., na.rm = TRUE))),
+              n = n(),
+              .groups = 'drop')
+
+#GPP
+
+maxmonths_etc_sp_gpp = sitemonths_sp %>%
+    group_by(sitecode) %>%
+    filter(GPP_mean == max(GPP_mean),
+           n == max(n)) %>%
+    summarize(GPP_mean = first(GPP_mean),
+              GPP_sd = first(GPP_sd),
+              n = first(n),
+              month = first(month),
+              .groups = 'drop') %>%
+    mutate(SE = GPP_sd / sqrt(n))
+
+maxmonths_etc_fnet_gpp = sitemonths_fnet %>%
+    group_by(sitecode) %>%
+    filter(GPP_mean == max(GPP_mean),
+           n == max(n)) %>%
+    summarize(GPP_mean = first(GPP_mean),
+              GPP_sd = first(GPP_sd),
+              n = first(n),
+              month = first(month),
+              .groups = 'drop') %>%
+    mutate(SE = GPP_sd / sqrt(n))
+
+maxmonths_sp_gpp = c('1' = 0, table(maxmonths_etc_sp_gpp$month), '12' = 0)
+maxmonths_fnet_gpp = table(maxmonths_etc_fnet_gpp$month)
+maxmonths_gpp = matrix(c(maxmonths_fnet_gpp, maxmonths_sp_gpp),
+                   nrow = 2, byrow = TRUE,
+                   dimnames = list(c('FLUXNET', 'StreamPULSE'),
+                                   month.abb))
+
+jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
+     filename='figures/peak_months/GPP.jpg')
+
+barplot(maxmonths_gpp, border = NA, beside = TRUE,
+        col = c(fnetcolor, spcolor),
+        ylab = 'n', main = 'Highest GPP months')
+legend(x=25, y=60, legend=c('FLUXNET', 'StreamPULSE'),
+       fill = c(fnetcolor, spcolor), bty = 'n', border = NA)
+text(x=25, y=52, adj = 0, paste('n FLUXNET =', sum(maxmonths_sp_gpp)))
+text(x=25, y=49, adj = 0, paste('n StreamPULSE =', sum(maxmonths_fnet_gpp)))
+
+dev.off()
+
+#ER
+
+maxmonths_etc_sp_er = sitemonths_sp %>%
+    group_by(sitecode) %>%
+    filter(ER_mean == min(ER_mean),
+           n == max(n)) %>%
+    summarize(ER_mean = first(ER_mean),
+              ER_sd = first(ER_sd),
+              n = first(n),
+              month = first(month),
+              .groups = 'drop') %>%
+    mutate(SE = ER_sd / sqrt(n))
+
+maxmonths_etc_fnet_er = sitemonths_fnet %>%
+    group_by(sitecode) %>%
+    filter(ER_mean == min(ER_mean),
+           n == max(n)) %>%
+    summarize(ER_mean = first(ER_mean),
+              ER_sd = first(ER_sd),
+              n = first(n),
+              month = first(month),
+              .groups = 'drop') %>%
+    mutate(SE = ER_sd / sqrt(n))
+
+maxmonths_sp_er = table(maxmonths_etc_sp_er$month)
+tt = table(maxmonths_etc_fnet_er$month)
+maxmonths_fnet_er = c(tt[1:9], c('10' = 0), tt[10:11])
+maxmonths_er = matrix(c(maxmonths_fnet_er, maxmonths_sp_er),
+                   nrow = 2, byrow = TRUE,
+                   dimnames = list(c('FLUXNET', 'StreamPULSE'),
+                                   month.abb))
+
+jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
+     filename='figures/peak_months/ER.jpg')
+
+barplot(maxmonths_er, border = NA, beside = TRUE,
+        col = c(fnetcolor, spcolor),
+        ylab = 'n', main = 'Highest ER months')
+legend(x=25, y=55, legend=c('FLUXNET', 'StreamPULSE'),
+       fill = c(fnetcolor, spcolor), bty = 'n', border = NA)
+text(x=25, y=48, adj = 0, paste('n FLUXNET =', sum(maxmonths_sp_er)))
+text(x=25, y=45, adj = 0, paste('n StreamPULSE =', sum(maxmonths_fnet_er)))
+
+dev.off()
