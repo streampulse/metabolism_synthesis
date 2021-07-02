@@ -266,18 +266,40 @@ sp_full %>%
 
 # 4: split sites by coverage ####
 
-sp_coverage = tapply(sp_full$GPP_C, sp_full$sitecode, function(x){
-    round(sum(! is.na(x)) / length(x), 2)
-})
+coverage_sp = sp_full %>%
+    group_by(sitecode) %>%
+    summarize(ndays = sum(! is.na(GPP_C)),
+              nyears = length(unique(Year)),
+              coverage = round(ndays / (nyears * 365),
+                               digits = 2),
+              .groups = 'drop')
 
-fnet_coverage = tapply(fnet_full$GPP, fnet_full$sitecode, function(x){
-    round(sum(! is.na(x)) / length(x), 2)
-})
+coverage_fnet = fnet_full %>%
+    group_by(sitecode) %>%
+    summarize(ndays = sum(! is.na(GPP)),
+              nyears = length(unique(Year)),
+              coverage = round(ndays / (nyears * 365),
+                               digits = 2),
+              .groups = 'drop')
 
-sp_high_cov_sites = names(which(sp_coverage >= 0.8))
+# sp_coverage = tapply(sp_full$GPP_C, sp_full$sitecode, function(x){
+#     round(sum(! is.na(x)) / length(x), 2)
+# })
+#
+# fnet_coverage = tapply(fnet_full$GPP, fnet_full$sitecode, function(x){
+#     round(sum(! is.na(x)) / length(x), 2)
+# })
+
+sp_high_cov_sites = coverage_sp %>%
+    filter(coverage >= 0.8) %>%
+    pull(sitecode)
+# sp_high_cov_sites = names(which(sp_coverage >= 0.8))
 sp_high_cov_bool = sp_site$sitecode %in% sp_high_cov_sites
 
-fnet_high_cov_sites = names(which(fnet_coverage >= 0.8))
+fnet_high_cov_sites = coverage_fnet %>%
+    filter(coverage >= 0.8) %>%
+    pull(sitecode)
+# fnet_high_cov_sites = names(which(fnet_coverage >= 0.8))
 fnet_high_cov_bool = fnet_site$sitecode %in% fnet_high_cov_sites
 
 # sp_high_cov_sites = sp$sitecode[sp$coverage >= 0.8]
@@ -884,13 +906,13 @@ bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=TRUE, outfile='figure
 #                          digits = 2)) %>%
 #     ungroup()
 
-coverage_tb = sp_full %>%
-    group_by(sitecode) %>%
-    summarize(ndays = sum(! is.na(GPP_C)),
-              nyears = length(unique(Year)),
-              coverage = round(ndays / (nyears * 365),
-                               digits = 2),
-              .groups = 'drop')
+# coverage_tb = sp_full %>%
+#     group_by(sitecode) %>%
+#     summarize(ndays = sum(! is.na(GPP_C)),
+#               nyears = length(unique(Year)),
+#               coverage = round(ndays / (nyears * 365),
+#                                digits = 2),
+#               .groups = 'drop')
 
 # qq = readRDS('output/synthesis_gap_filled.rds')
 # sp_names = names(qq)
@@ -931,7 +953,7 @@ site_data = full_join(site_data_A, site_data_B)
 
 stats_set = site_data %>%
     # right_join(sp_site, by = 'sitecode') %>%
-    right_join(coverage_tb) %>%
+    right_join(coverage_sp) %>%
     # select(sitecode, ann_GPP_C, ann_ER_C,
     #        nyear, coverage, Disch_ar1, MOD_ann_NPP, Stream_PAR_sum,
     #        lat, lon, ws_area_km2) %>%
@@ -1117,3 +1139,74 @@ write_csv(summarized_by_site,
 #         NEP_ann_mean = GPP_ann_mean + ER_ann_mean,
 #         NEP_site_mean = GPP_site_mean + ER_site_mean) %>%
 #     arrange(sitecode)
+
+# 12: interannual CVs ####
+
+fnet_cvs = fnet_full %>%
+    mutate(NEP = GPP + ER) %>%
+    group_by(sitecode, Year) %>%
+    summarize(across(c(GPP, ER, NEP), mean, na.rm = TRUE)) %>%
+    filter(n() > 3) %>%
+    ungroup() %>%
+    group_by(sitecode) %>%
+    summarize(across(c(GPP, ER, NEP),
+                     ~sd(., na.rm = TRUE) / mean(., na.rm = TRUE) * 100),
+              .groups = 'drop')
+
+sp_cvs = sp_full %>%
+    rename(GPP = GPP_C_filled,
+           ER = ER_C_filled) %>%
+    mutate(NEP = GPP + ER) %>%
+    group_by(sitecode, Year) %>%
+    summarize(across(c(GPP, ER, NEP), mean, na.rm = TRUE)) %>%
+    filter(n() > 3) %>%
+    ungroup() %>%
+    group_by(sitecode) %>%
+    summarize(across(c(GPP, ER, NEP),
+                     ~sd(., na.rm = TRUE) / mean(., na.rm = TRUE) * 100),
+              .groups = 'drop')
+
+#--- distplots
+
+probdens2 <- function(d_sp, d_fnet, v){
+
+    dens_sp = density(na.omit(d_sp[[v]]))
+    dens_sp = tibble(x=dens_sp$x, y=dens_sp$y)
+    dens_fnet = density(na.omit(d_fnet[[v]]))
+    dens_fnet = tibble(x=dens_fnet$x, y=dens_fnet$y)
+
+    xlims = range(c(range(dens_sp$x), range(dens_fnet$x)))
+
+    plot(dens_sp$x, dens_sp$y, type='n', ann=FALSE, yaxt='n',# xaxt='n',
+         bty='n', xlim=xlims)
+
+    # tck = c(0.1, 1, 10, 100, 1000, 10000, 100000)
+    # # ertck = rev(c(10000, 1000, 100, 10, 1, ))
+    # tck_log = log(tck)
+    # # axis(1, at=tck_log, labels=tck, cex.axis=2.4, padj=0.4)
+    # # ertck_log = log(ertck) * -1
+    # # axis(2, at=ertck_log, labels=ertck * -1, cex.axis=2.4, padj=0.2)
+    # axis(1, at=tck_log, labels=tck, padj=-1.3, tick = TRUE, line=-0.2, tcl=-0.2)
+
+    mtext(v, 1, line=2)
+    polygon(x=c(dens_fnet$x, rev(dens_fnet$x)),
+            y=c(dens_fnet$y, rep(0, nrow(dens_fnet))),
+            col=alpha(fnetcolor, alpha=0.7),
+            border=alpha(fnetcolor, alpha=0.7))
+    polygon(x=c(dens_sp$x, rev(dens_sp$x)),
+            y=c(dens_sp$y, rep(0, nrow(dens_sp))),
+            col=alpha(spcolor, alpha=0.7),
+            border=alpha(spcolor, alpha=0.7))
+}
+
+jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
+     filename='figures/gpp_er_distplots.jpeg')
+
+par(mfrow=c(2, 1), mar=c(2,1,1,1), oma=c(0, 0, 0, 0))
+
+probdens2(sp_cvs, fnet_cvs, 'GPP')
+probdens2(sp_cvs, fnet_cvs, 'ER')
+probdens2(sp_cvs, fnet_cvs, 'NEP') #???
+
+
+# 13: peak months ####
