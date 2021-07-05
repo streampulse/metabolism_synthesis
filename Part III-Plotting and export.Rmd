@@ -1,0 +1,791 @@
+---
+title: "Part II: Filtering, gap-filling, and calculating metrics"
+author: "Phil Savoy"
+date: "6/28/2021"
+output: html_document
+---
+
+# Description
+
+<font size="5">Summary of major workflow components</font> 
+
+This workflow is part of a series that describes the preparation of data used in Bernhardt et al. (). The creation of this dataset consists of several sub workflows as described below.
+
+* **Part I: Standardized dataset creation:** Part I is the preparation of standardized datasets of stream metabolism from the [StreamPULSE data portal](https://data.streampulse.org/) and terrestrial ecosystem fluxes from the [FLUXNET2015 dataset](https://fluxnet.org/data/fluxnet2015-dataset/). 
+
+* **Part II. Filtering, gap-filling, and calculating metrics:** In Part II the standardized dataset of lotic and terrestrial metabolism data was filtered down to the subset of sites used in Bernhardt et al. (). After filtering, additional descriptive metrics were calculated to use in analysis.
+
+* **Part III. Analysis:** In Part III (ADD TEXT)
+
+<font size="5">In this document</font> 
+
+* **Filtering and gap-filling data:** Data diagnostics were calculated for each site-year of data that described estimates of GPP and ER from the lotic and terrestrial sites. Based on these diagnostics, the datasets were then filtered to retain sites with sufficient information and model performance for later analysis. The filtered sites were then gap-filled to facilitate the calculation of descriptive metrics in the next step.
+
+* **Calculating site metrics:** A series of metrics were calculated for each site, for both metabolism and environmental data. For lotic sites, an additional series of metrics were calculated based on adapted ecologically relevant streamflow statistics described in [Archfield et al. (2013)](https://onlinelibrary.wiley.com/doi/abs/10.1002/rra.2710).
+
+* **Exporting the final dataset:** Several datasets are exported for use in the analysis described in Part III of this workflow documentation. This section details the exported datasets and provides column definitions for each piece of exported data.
+
+<font size="5">Key</font> 
+
+Throughout this document certain terms are indicated with changes in the color or emphasis of text. Please refer to the following key for their meaning:
+
+***
+
+* <span style="color:orange">**R functions**</span>
+* **R Package**
+* **<span style="color:#009688">"Column name"</span>**
+
+***
+
+This workflow utilizes a package called **BernhardtMetabolism**. This packages bundles together several files created in Part I of the workflow, as well as all of the necessary code to reproduce the analysis described in this document (Part II of the workflow). Before proceeding, make sure that the package is installed.
+
+```{r, eval = FALSE}
+install.packages('./BernhardtMetabolism.zip', repos = NULL)
+```
+
+```{r Setup envrionment, include = FALSE}
+#Before proceeding, load the necessary packages
+  library("BernhardtMetabolism")
+```
+
+ 
+# {.tabset .tabset-pills}
+
+
+---
+
+## Filtering and gap-filling the dataset
+
+---
+
+<font size="6">Filtering and gap-filling the dataset</font>
+
+
+### 1. Calculate diagnostics for each site (both lotic and terrestrial)
+
+To help filter down the full standardized datasets, a series diagnostic measures were calculated for each site-year of data. These diagnostics include information about model fits and the availability of various data sources. These diagnostics differ slightly between lotic and terrestrial sites due to differences in how they were modeled, and because additional data sources were used to further investigate patterns in lotic metabolism. 
+
+#### 1.1 Calculate diagnostics for lotic sites
+
+For each site-year the following set of diagnostics were calculated with the help of the <span style="color:orange">**diagnostics_fun**</span> from the included **BernhardtMetabolism** package.
+
+```{r Calculate lotic diagnostics, include = FALSE}
+#===============================================================================
+#Calculate diagnostics for each site-year of lotic metabolism data
+#===============================================================================
+lotic_yearly_diagnostics_wrapper <- function(){
+#-------------------------------------------------
+#Define functions to use  
+#-------------------------------------------------  
+  #Function to see if ancillary data is available for each site-year
+    yearly_ancillary <- function(Site_ID, ts, modis_npp){
+      #See if various time series data are available for the site-year
+        ifelse(all(is.na(ts[, "PAR_sum"])) == FALSE, NLDAS_data <- TRUE, NLDAS_data <- FALSE)
+        ifelse(all(is.na(ts[, "LAI_proc"])) == FALSE, LAI_data <- TRUE, LAI_data <- FALSE)
+        ifelse(all(is.na(ts[, "Stream_PAR_sum"])) == FALSE, Predicted_light <- TRUE, Predicted_light <- FALSE)  
+        
+      #Year of interest
+        YOI <- unique(ts[, "Year"])
+        
+      #See if there is annual MODIS NPP data for the year
+        mod_check <- modis_npp[modis_npp[, "Site_ID"] == Site_ID & modis_npp[, "Year"] == YOI, ]
+        ifelse(nrow(mod_check) != 0, modis_npp <- TRUE, modis_npp <- FALSE)
+        
+      #Return the final information
+        final <- data.frame(Site_ID, YOI, NLDAS_data, LAI_data, Predicted_light, 
+          modis_npp, stringsAsFactors = FALSE)
+        
+          colnames(final)[2] <- "Year"
+          
+        return(final)
+        
+    } #End yearly_ancillary function
+
+  #Define a wrapper function to calculate diagnostics for each site-year
+    yearly_diagnostics <- function(Site_ID, modis_npp){
+      #Get the timeseries for the site of interest
+        SOI <- lotic_standardized_full[[Site_ID]]    
+      
+      #Split by year
+        year_split <- split(SOI, SOI[, "Year"])
+   
+      #Calculate diagnostics for each site-year of data
+        sy_diag <- do.call(rbind, 
+          lapply(
+            year_split,
+            BernhardtMetabolism::diagnostics_fun
+          )
+        )   
+        
+      #Add site-year and site name
+        sy_diag$Year <- as.numeric(row.names(sy_diag))
+        sy_diag$Site_ID <- Site_ID
+        
+      #Check for availability of ancillary data for each site-year of data
+        sy_ancillary <- do.call(rbind,
+          lapply(year_split, 
+            FUN = yearly_ancillary, 
+            Site_ID = Site_ID,
+            modis_npp = modis_npp
+          )
+        )       
+        
+      #Merge the tables together
+        merged <- merge(sy_diag, sy_ancillary, by = c("Site_ID", "Year"))
+        
+      #Reorder for the final output
+        final <- merged[, c("Site_ID", "Year", "ER_K", "K600_max", "GPP_neg", "ER_pos", "num_days", 
+          "NLDAS_data", "LAI_data", "Predicted_light", "modis_npp")]
+        
+      return(final)
+        
+    } #End yearly_diagnostics function
+  
+#-------------------------------------------------
+#Calculate diagnostics and ancillary data availability  
+#-------------------------------------------------    
+  #Apply the function to calculate diagnostics for each site-year
+    lotic_yearly_diagnostics <- do.call(rbind,
+      lapply(
+        names(lotic_standardized_full), 
+        yearly_diagnostics,
+        modis_npp = modis_annual_NPP
+      )
+    )
+-
+#Export the output    
+  return(lotic_yearly_diagnostics)  
+    
+} #End lotic_yearly_diagnostics_wrapper
+
+#-------------------------------------------------
+#Run the chunk wrapper
+#-------------------------------------------------
+  lotic_yearly_diagnostics <- lotic_yearly_diagnostics_wrapper()
+```
+
+The output contains the following the following columns:
+
+* **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
+* **<span style="color:#009688">"Year":</span>** Year
+* **<span style="color:#009688">"ER_K":</span>** The correlation coefficient (R^2^) between ecosystem respiration and K600. This was calculated from the "ER" column and thus does not include positive ER values as part of the calculation.
+* **<span style="color:#009688">"GPP_neg":</span>** Percentage of days with negative stream GPP estimates based on the raw GPP data ("GPP_raw")
+* **<span style="color:#009688">"ER_pos":</span>** Percentage of days with positive stream ER estimates based on the raw ER data ("ER_raw)
+* **<span style="color:#009688">"num_days":</span>** The number of days with estimated stream metabolism (excluding days with negative GPP and positive ER)
+* **<span style="color:#009688">"NLDAS_data":</span>** Logical indicator (TRUE or FALSE) for availability of NLDAS data for this site-year
+* **<span style="color:#009688">"LAI_data":</span>** Logical indicator (TRUE or FALSE) for availability of LAI data for this site-year
+* **<span style="color:#009688">"Predicted_light":</span>** Logical indicator (TRUE or FALSE) for availability of StreamLight predictions of light at the stream surface for this site-year
+* **<span style="color:#009688">"MODIS_NPP":</span>** Logical indicator (TRUE or FALSE) for availability of MODIS annual NPP data for this site-year
+
+#### 1.2 Calculate diagnostics for terrestrial sites
+
+For each site-year the following set of diagnostics were calculated with the help of the <span style="color:orange">**diagnostics_fun**</span> from the included **BernhardtMetabolism** package.
+
+```{r Calculate FLUXNET diagnostics, include = FALSE}
+#===============================================================================
+#Calculate diagnostics for each site-year of terrestrial metabolism data
+#===============================================================================
+fluxnet_yearly_diagnostics_wrapper <- function(){
+#Define a wrapper function to calculate diagnostics for each site-year
+  yearly_diagnostics <- function(Site_ID){
+    #Get the timeseries for the site of interest
+      SOI <- fluxnet_standardized_full[[Site_ID]]    
+    
+    #Split by year
+      year_split <- split(SOI, SOI[, "Year"])
+ 
+    #Calculate diagnostics for each site-year of data
+      sy_diag <- do.call(rbind,
+        lapply(year_split,
+          BernhardtMetabolism::fluxnet_diagnostics_fun
+        )
+      )   
+
+    #Add site-year and site name
+      sy_diag$Year <- as.numeric(row.names(sy_diag))
+      sy_diag$Site_ID <- Site_ID
+      
+    #Reorder for the final output
+      sy_diag[, c("Site_ID", "Year", "GPP_neg", "ER_pos", "num_days")]
+      
+  } #End yearly_diagnostics function
+  
+#Apply the function to calculate diagnostics for each site-year
+  compiled_diagnostics <- do.call(rbind, lapply(names(fluxnet_standardized_full), yearly_diagnostics))
+
+#Save the output
+  return(compiled_diagnostics)
+  
+} #End fluxnet_yearly_diagnostics_wrapper wrapper function
+
+#-------------------------------------------------
+#Run the chunk wrapper
+#-------------------------------------------------
+  fluxnet_yearly_diagnostics <- fluxnet_yearly_diagnostics_wrapper()
+```
+
+The output contains the following the following columns:
+
+* **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
+* **<span style="color:#009688">"Year":</span>** Year
+* **<span style="color:#009688">"GPP_neg":</span>** Percentage of days with negative GPP estimates based on the raw GPP data ("GPP_raw")
+* **<span style="color:#009688">"ER_pos":</span>** Percentage of days with positive ER estimates based on the raw ER data ("ER_raw")
+* **<span style="color:#009688">"num_days":</span>** The number of days (excluding days with negative GPP and positive ER)
+
+
+### 2. Filtering and gap-filling the datasets   
+
+#### 2.1 Lotic sites
+
+##### 2.1.1 Filter the lotic metabolism dataset
+
+At this point all of the data for any site with metabolism data in the CONUS has been compiled. Analysis for the metabolism synthesis paper will be derived from a filtered subset of this dataset based on the previously calculated data diagnostic measures.
+
+<font size="3">Filtering criteria:</font>
+
+ * Site-years must have stream metabolism estimates (excluding days with negative GPP estimates or positive ER estimates) for at least 60% of the year
+ * R^-2^ between ER and K600 less than 0.6 for the site-year
+ * The maximum K600 value is less than 100 for the site-year
+ * The site-year has NLDAS incoming shortwave radiation data (used to calculate annual total incoming PAR)
+ * The site-year has light estimates at the stream surface
+ * The site-year has MODIS terrestrial NPP data available
+
+```{r Filter metabolism data}
+#===============================================================================
+#Filter the lotic metabolism data
+#===============================================================================
+#Filter the site-years
+  lotic_filtered <- lotic_yearly_diagnostics %>%
+    filter(num_days >= 365 * 0.6) %>%
+    filter(ER_K < 0.6) %>%
+    filter(K600_max < 100) %>%
+    filter(NLDAS_data == TRUE) %>%
+    filter(Predicted_light == TRUE) %>%
+    filter(modis_npp == TRUE)
+
+#Retrieve site-years of timeseries from the standardized metabolism dataset
+  lotic_filtered_metabolism <- BernhardtMetabolism::filter_metab_data(
+    filtered_sy = lotic_filtered,
+    standardized_timeseries = lotic_standardized_full
+  )
+
+```
+
+##### 2.1.2 Gap-fill lotic sites sites
+
+To calculate annual sums, as well as several descriptive statistics, it was necessary to first perform gap-filling. GPP, ER, NEP, water temperature, daily incoming PAR, and discharge were all gap-filled. Gap-filling was done using a structural timeseries. The code for gap-filling is a slight modification of the <span style="color:orange">**fillMiss**</span> function from the [**waterData** package](https://github.com/USGS-R/waterData). 
+
+At this stage several notable steps occurred:
+
+* Stream NEP (GPP + ER) was calculated
+* Additional columns for stream GPP, ER, and NEP expressed in units of (g C m^-2^ d^-1) were calculated based on a photosynthetic quotient (PQ) of 1.25.
+* Gap-filling of stream metabolism, water temperature, daily incoming PAR, discharge
+* Z-normalization of stream metabolism, water temperature, daily incoming PAR
+
+```{r Gap-fill data, results = "hide", message = FALSE, warning = FALSE}
+#===============================================================================
+#Gap-fill the filtered lotic metabolism
+#===============================================================================
+#Gap-fill the data       
+  lotic_gap_filled <- BernhardtMetabolism::synthesis_gapfill(
+    synthesis_filtered = lotic_filtered_metabolism, 
+    PQ = 1.25,
+    block = 150,
+    pmiss = 50
+  )   
+```
+
+
+#### 2.2 Terrestrial sites
+
+The terrestrial sites only need to be filtered, but not gap-filled since: 1.) It is not necessary to perform gap-filling to derive annual sums because the FLUXNET2015 dataset already provides annual sums, and 2.) because terrestrial sites are not the primary focus of this paper, only a few derived metrics are calculated and none require gap-filled data.
+
+<font size="3">Filtering criteria:</font>
+
+ * Site-years must have metabolism estimates (excluding days with negative GPP estimates or positive ER estimates) for at least 60% of the year
+ * Additionally, tier-2 FLUXNET sites were removed based on their stricter data usage agreements ("RU-Sam", "RU-SkP", "RU-Tks",  "RU-Vrk", "SE-St1", "ZA-Kru").
+
+```{r Filter FLUXNET}
+#===============================================================================
+#Filter the FLUXNET metabolism data
+#===============================================================================
+#Filter the site-years, including removing tier-2 sites, that grant data producers collaboration rights
+  fluxnet_filtered <- fluxnet_yearly_diagnostics %>%
+    filter(num_days >= 365 * 0.6) %>%
+    filter(!(Site_ID %in% c("RU-Sam", "RU-SkP", "RU-Tks",  "RU-Vrk", "SE-St1", "ZA-Kru")))
+        
+#Retrieve site-years of timeseries from the standardized metabolism dataset
+  fluxnet_filtered_metabolism <- BernhardtMetabolism::filter_metab_data(
+    filtered_sy = fluxnet_filtered,
+    standardized_timeseries = fluxnet_standardized_full
+  )  
+```
+
+
+---
+
+## Calculating site metrics
+
+---
+
+<font size="6">Calculating site metrics</font>
+
+
+### 1. Metrics for lotic synthesis sites
+
+We calculated a number of metrics to describe both metabolism and environmental conditions for the final subset of filtered and gap-filled lotic sites. A number of these metrics are based on a set of ecologically relevant streamflow statistics as described by [Archfield et al. (2013)](https://onlinelibrary.wiley.com/doi/abs/10.1002/rra.2710).
+
+<font size="4">"Magnificent 7" metrics from [Archfield et al. (2013)](https://onlinelibrary.wiley.com/doi/abs/10.1002/rra.2710)</font> 
+
+* Mean
+* Coefficient of variation (CV)
+* Skewness
+* Kurtosis
+* Autoregressive lag-one correleation coefficient (AR1)
+* Amplitude
+* Phase
+
+The "magnificent 7" statistics help to capture variation in the magnitude, frequency, duration, timing, and rate of change in a timeseries. Therefore, we extended the initial application of this suite of metrics to include GPP, ER, water temperature, discharge, PAR, and LAI. The code used to calculate these statistics is based on code from the [**EflowStats** package](https://github.com/USGS-R/EflowStats), which we modified to be generalized across different types of data.
+
+
+```{r Synthesis site metrics, include = FALSE}
+#===============================================================================
+#Calculate a series of metrics for the lotic synthesis sites including
+#mean annual GPP, 95th percentile of GPP, mean annual ER, 5th percentile of ER,
+#mean annual cumulative PAR (both incoming and estimated), magnificent 7
+#statistics for GPP, ER, water temperature, discharge, PAR, and LAI 
+#Created 9/14/2020
+#===============================================================================
+#-------------------------------------------------
+#Calculate the majority of site metrics
+#-------------------------------------------------
+  #Calculate the metrics for each site
+    metrics_compiled <- plyr::ldply(
+      names(lotic_gap_filled), 
+      BernhardtMetabolism::calc_site_metrics, 
+      gap_filled = lotic_gap_filled
+    )
+  
+#-------------------------------------------------
+#Add corresponding mean annual MODIS NPP
+#-------------------------------------------------
+  #Define a function to calculate the mean annual MODIS NPP (g C m-2 y-1)  
+    calc_mean_NPP <- function(Site_ID, gap_filled, npp_data){
+      #Get the site of interest
+        years <- unique((gap_filled[[Site_ID]][, "Year"]))
+          
+      #Subset for the site and filtered years
+        mod_sub <- npp_data[npp_data[, "Site_ID"] %in% Site_ID & npp_data[, "Year"] %in% years, ]
+          
+      #Get the final output
+        final <- setNames(data.frame(
+          Site_ID,
+          mean(mod_sub[, "MOD_ann_NPP"], na.rm = TRUE)
+        ), c("Site_ID", "MOD_ann_NPP"))
+          
+      return(final)
+         
+    } #End calc_mean_NPP function
+      
+  #Apply the function to calculate mean annual MODIS NPP
+    mean_annual_NPP <- plyr::ldply(
+      names(lotic_gap_filled),
+      calc_mean_NPP,
+      gap_filled = lotic_gap_filled,
+      npp_data = modis_annual_NPP
+    )
+  
+#-------------------------------------------------
+#Return the final set of site metrics    
+#-------------------------------------------------
+  #Merge the NPP data with the other site metrics
+    lotic_site_metrics <- merge(
+      metrics_compiled,
+      mean_annual_NPP,
+      by = "Site_ID",
+      all.x = TRUE
+    )
+```
+
+
+<font size="4">Final compiled table of site information</font> 
+
+Finally, the site metrics were joined with the basic site information to provide a single table of site information and calculated metrics for the filtered set of lotic sites.
+
+```{r Final lotic table, include = FALSE}
+#===============================================================================
+#Get a final table of basic site information and site metrics
+#===============================================================================
+#Merge together the site metrics and the basic site information for the set of filtered data
+  info_merged <- merge(
+    lotic_site_metrics,
+    lotic_site_info_full,
+    by = "Site_ID",
+    all.x = TRUE
+  )
+  
+#Reorder the columns
+  lotic_site_info_filtered <- info_merged[, c(names(lotic_site_info_full), names(lotic_site_metrics)[names(lotic_site_metrics) != "Site_ID"] )]
+  
+```
+
+
+The output contains the following the following columns:
+
+* **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
+* **<span style="color:#009688">"Name":</span>** Site long name
+* **<span style="color:#009688">"Source":</span>** Site data source
+* **<span style="color:#009688">"Lat":</span>** Site Latitude
+* **<span style="color:#009688">"Lon":</span>** Site Longitude
+* **<span style="color:#009688">"epsg_crs":</span>** Site coordinate reference system as EPSG code
+* **<span style="color:#009688">"COMID":</span>** NHDPlus_v2 reach COMID
+* **<span style="color:#009688">"VPU":</span>** Vector processing unit
+* **<span style="color:#009688">"StreamOrde":</span>** Stream order (from NHDPlus_v2 flowlines)
+* **<span style="color:#009688">"Azimuth":</span>** Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.
+* **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
+* **<span style="color:#009688">"Width":</span>** Channel width (m)
+* **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
+* **<span style="color:#009688">"ann_GPP_C":</span>** Mean annual cumulative stream GPP (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of GPP (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"upper_GPP_C":</span>** 95th percentile of daily rates of stream GPP (g C m^-2^ d^-1^).
+* **<span style="color:#009688">"ann_ER_C":</span>** Mean annual cumulative stream ER (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of ER (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"lower_ER_C":</span>** 5th percentile of daily rates of stream ER (g C m^-2^ d^-1^). Since ER is negative, you can think of this as equivalent to the 95th percentile done for GPP. 
+* **<span style="color:#009688">"PAR_sum":</span>**  Mean annual cumulative incoming PAR (kmol m^-2^ y^-1^). This was calculated by first calculating annual sums of PAR (kmol m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"Stream_PAR_sum":</span>**  Mean annual cumulative predicted PAR at the stream surface (kmol m^-2^ y^-1^). This was calculated by first calculating annual sums of predicted PAR at the stream surface (kmol m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"gpp_C_mean":</span>** Mean daily GPP (g C m^-2^ d^-1^)
+* **<span style="color:#009688">"gpp_C_cv":</span>** CV of daily GPP
+* **<span style="color:#009688">"gpp_C_skew":</span>** Skewness of daily GPP
+* **<span style="color:#009688">"gpp_C_kurt":</span>** Kurtosis of daily GPP
+* **<span style="color:#009688">"gpp_C_amp":</span>** Amplitude of daily GPP
+* **<span style="color:#009688">"gpp_C_phase":</span>** Phase of daily GPP (day of year)
+* **<span style="color:#009688">"gpp_C_ar1":</span>** Autoregressive lag-one correlation coefficient of daily GPP
+* **<span style="color:#009688">"er_C_mean":</span>** Mean daily ER (g C m^-2^ d^-1^)
+* **<span style="color:#009688">"er_C_cv":</span>** CV of daily ER
+* **<span style="color:#009688">"er_C_skew":</span>** Skewness of daily ER
+* **<span style="color:#009688">"er_C_kurt":</span>** Kurtosis of daily ER
+* **<span style="color:#009688">"er_C_amp":</span>** Amplitude of daily ER
+* **<span style="color:#009688">"er_C_phase":</span>** Phase of daily ER (day of year)
+* **<span style="color:#009688">"er_C_ar1":</span>** Autoregressive lag-one correlation coefficient of daily ER
+* **<span style="color:#009688">"Wtemp_mean** Mean daily water temperature
+* **<span style="color:#009688">"Wtemp_cv":</span>** CV of daily GPP
+* **<span style="color:#009688">"Wtemp_skew":</span>** Skewness of daily water temperature
+* **<span style="color:#009688">"Wtemp_kurt":</span>** Kurtosis of daily water temperature
+* **<span style="color:#009688">"Wtemp_amp":</span>** Amplitude of daily water temperature
+* **<span style="color:#009688">"Wtemp_phase":</span>** Phase of daily water temperature (day of year)
+* **<span style="color:#009688">"Wtemp_ar1":</span>** Autoregressive lag-one correlation coefficient of daily water temperature
+* **<span style="color:#009688">"Disch_mean":</span>** Mean daily discharge
+* **<span style="color:#009688">"Disch_cv":</span>** CV of daily discharge
+* **<span style="color:#009688">"Disch_skew":</span>** Skewness of daily discharge
+* **<span style="color:#009688">"Disch_kurt":</span>** Kurtosis of daily discharge
+* **<span style="color:#009688">"Disch_amp":</span>** Amplitude of daily discharge
+* **<span style="color:#009688">"Disch_phase":</span>** Phaste of daily discharge (day of year)
+* **<span style="color:#009688">"Disch_ar1":</span>** Autoregressive lag-one correlation coefficient of daily discharge
+* **<span style="color:#009688">"PAR_mean":</span>** Mean daily PAR
+* **<span style="color:#009688">"PAR_cv":</span>** CV of daily PAR
+* **<span style="color:#009688">"PAR_skew":</span>** Skewness of daily PAR
+* **<span style="color:#009688">"PAR_kurt":</span>** Kurtosis of daily PAR
+* **<span style="color:#009688">"PAR_amp":</span>** Amplitude of daily PAR
+* **<span style="color:#009688">"PAR_phase":</span>** Phase of daily PAR (day of year)
+* **<span style="color:#009688">"PAR_ar1":</span>** Autoregressive lag-one correlation coefficient of daily PAR
+* **<span style="color:#009688">"LAI_mean":</span>** Mean daily LAI (m^2^ m^-2^)
+* **<span style="color:#009688">"LAI_cv":</span>** CV of LAI
+* **<span style="color:#009688">"LAI_skew":</span>** Skewness of LAI
+* **<span style="color:#009688">"LAI_kurt":</span>** Kurtosis of LAI
+* **<span style="color:#009688">"LAI_amp":</span>** Amplitude of LAI
+* **<span style="color:#009688">"LAI_phase":</span>** Phase of LAI  (day of year)
+* **<span style="color:#009688">"LAI_ar1":</span>** Autoregressive lag-one correlation coefficient of daily LAI
+* **<span style="color:#009688">"MOD_ann_NPP":</span>** Mean annual MODIS NPP (g C m^-2^ y^-1^) for the concurrent period of record for stream metabolism data at a site. Annual sums of NPP (g C m^-2^ d^-y^) were available for each site year and then the mean was taken to get a mean annual rate for each site.
+
+
+### 2. Metrics for terrestrial sites
+
+For the terrestrial sites, only a small number of summary measures were calculated to capture the magnitude of fluxes of GPP and ER. These were then joined to some basic site information to provide a single table of site information and calculated metrics for the filtered set of terrestrial sites.
+
+```{r FLUXNET site metrics, include = FALSE}
+#===============================================================================
+#Calculate several metrics for FLUXNET sites
+#===============================================================================
+#-------------------------------------------------
+#Define a function to calculate metrics for FLUXNET sites
+#-------------------------------------------------
+  calc_fluxnet_metrics <- function(Site_ID, filtered){
+    #Get annual estimates for the site of interest
+      SOI_annual <- fluxnet_annual[[Site_ID]]
+      
+    #Subset the annual data for the filtered years
+      annual_sub <- SOI_annual[SOI_annual[, "Year"] %in% unique(filtered[[Site_ID]][, "Year"]), ]
+      
+    #Calculate mean annual rates
+      mean_annual <- colMeans(annual_sub[, c("GPP", "ER", "Net")], na.rm = TRUE)
+      
+    #Get the daily data for the site of interest
+      SOI_daily <- filtered[[Site_ID]]  
+      
+    #P95 of GPP
+      gpp_95 <- quantile(SOI_daily[, "GPP"], 0.95, na.rm = TRUE)[[1]]
+      
+    #P05 of ER
+      er_05 <- quantile(SOI_daily[, "ER"], 0.05, na.rm = TRUE)[[1]]
+      
+    #Bind them all together
+      bound <- data.frame(c(
+        data.frame(Site_ID, stringsAsFactors = FALSE), 
+        mean_annual, 
+        data.frame(gpp_95, stringsAsFactors = FALSE), 
+        data.frame(er_05, stringsAsFactors = FALSE)
+      ), stringsAsFactors = FALSE)
+      
+      final <- bound[, c("Site_ID", "GPP", "gpp_95", "ER", "er_05")]
+      
+      colnames(final)[1:5] <- c("Site_ID", "ann_GPP", "upper_GPP", "ann_ER", "lower_ER")     
+      
+    return(final)
+      
+  } #End calc_fluxnet_metrics
+  
+#-------------------------------------------------
+#Calculate the metrics and join to basic site info
+#-------------------------------------------------
+  #Calculate the summary metrics  
+    fluxnet_site_metrics <- plyr::ldply(
+      names(fluxnet_filtered_metabolism), 
+      calc_fluxnet_metrics,
+      filtered = fluxnet_filtered_metabolism
+    )
+
+  #Join 
+    fluxnet_site_info_filtered  <- merge(
+      fluxnet_basic_info,
+      fluxnet_site_metrics,
+      by = "Site_ID",
+      all.y = TRUE
+    )
+```
+
+The output contains the following the following columns:
+
+* **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
+* **<span style="color:#009688">"Name":</span>** Site long name
+* **<span style="color:#009688">"Lat":</span>** Site Latitude
+* **<span style="color:#009688">"Lon":</span>** Site Longitude
+* **<span style="color:#009688">"ann_GPP":</span>** Mean annual cumulative GPP (g C m^-2^ y^-1^). This was calculated from the annual sums of GPP (g C m^-2^ y^-1^) for each site year provided by FLUXNET, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"upper_GPP":</span>** 95th percentile of daily rates of GPP (g C m^-2^ d^-1^).
+* **<span style="color:#009688">"ann_ER":</span>** Mean annual cumulative ER (g C m^-2^ y^-1^). This was calculated from the annual sums of ER (g C m^-2^ y^-1^) for each site year provided by FLUXNET, and then taking the mean annual rate for each site
+* **<span style="color:#009688">"lower_ER":</span>** 5th percentile of daily rates of GPP (g C m^-2^ d^-1^). Since ER is negative, you can think of this as equivalent to the 95th percentile done for GPP.  
+
+
+---
+
+## Exporting the final dataset
+
+---
+
+<font size="6">Exporting the final dataset</font>
+
+A final set of outputs were then exported to the output_data directory of this repository.
+
+### 1. Standardized, unfiltered, lotic metabolism
+
+This is the full, unfiltered, standardized dataset of stream metabolism that was compiled.
+
+<font size="3"><i><span style="color:#00cc99">lotic_site_info_full.rds</span></i></font>
+
+Format: A single data frame with the following columns:
+
+* **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
+* **<span style="color:#009688">"Name":</span>** Site long name
+* **<span style="color:#009688">"Source":</span>** Site data source
+* **<span style="color:#009688">"Lat":</span>** Site Latitude
+* **<span style="color:#009688">"Lon":</span>** Site Longitude
+* **<span style="color:#009688">"epsg_crs":</span>** Site coordinate reference system as EPSG code
+* **<span style="color:#009688">"COMID":</span>** NHDPlus_v2 reach COMID
+* **<span style="color:#009688">"VPU":</span>** Vector processing unit
+* **<span style="color:#009688">"StreamOrde":</span>** Stream order (from NHDPlus_v2 flowlines)
+* **<span style="color:#009688">"Azimuth":</span>** Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.
+* **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
+* **<span style="color:#009688">"Width":</span>** Channel width (m)
+* **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
+
+<font size="3"><i><span style="color:#00cc99">lotic_standardized_full.rds</span></i></font>
+
+Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site. The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
+
+* **<span style="color:#009688">"Date":</span>** Date in YYYY-MM-DD format
+* **<span style="color:#009688">"U_ID":</span>** Unique date identifier (format as year + DOY)
+* **<span style="color:#009688">"Year":</span>** Year
+* **<span style="color:#009688">"DOY":</span>** Day of year (1 to 365 or 366)
+* **<span style="color:#009688">"GPP_raw":</span>** Stream GPP estimates (g O2 m^-2^ d^-1^) from Appling et al. (2018), raw data
+* **<span style="color:#009688">"ER_raw":</span>** Stream ER estimates (g O2 m^-2^ d^-1^) from Appling et al. (2018), raw data
+* **<span style="color:#009688">"GPP":</span>** Stream GPP estimates (g O2 m^-2^ d^-1^) from Appling et al. (2018), negative values replaced with NA
+* **<span style="color:#009688">"ER":</span>** Stream ER estimates (g O2 m^-2^ d^-1^) from Appling et al. (2018), positive values replaced with NA
+* **<span style="color:#009688">"K600":</span>** Model estimate of K600, the mean reaeration rate coefficient, scaled to a Schmidt number of 600, for this date. Value is the median of the post warmup MCMC distribution
+* **<span style="color:#009688">"DO.obs":</span>** Mean dissolved oxygen concentration (mg O2 L^-1^) for the date (4am to 3:59am)
+* **<span style="color:#009688">"DO.sat":</span>** Mean theoretical saturation concentration (mg O2 L^-1^) for the date (4am to 3:59am)
+* **<span style="color:#009688">"temp.water":</span>** Mean water temperature (degreees C) for the date (4am to 3:59pm)
+* **<span style="color:#009688">"discharge":</span>** Mean discharge (m^3^ s^-1^) for the date (4am to 3:59pm)
+* **<span style="color:#009688">"PAR_sum":</span>** Daily sum of incoming above canopy PAR (mol m^-2^ d^-1^)
+* **<span style="color:#009688">"Stream_PAR_sum":</span>** Daily sum of PAR estimated at the stream surface (mol m^-2^ d^-1^)
+* **<span style="color:#009688">"LAI_proc":</span>** MODIS LAI data that has been processed and gap-filled (m^2^ m^-2^)
+
+### 2. Standardized and filtered data used in Bernhardt et al. (in prep) 
+
+#### 2.1 Standardized, filtered, gap-filled lotic metabolism
+
+This is the dataset of stream metabolism used in Bernhardt et al. (in prep). This data has been filtered based on several measures of data quality and availability and gaps were gap-filled. Finally, a suite of site metrics were calculated for use in analysis.
+
+<font size="3"><i><span style="color:#00cc99">lotic_site_info_filtered.rds</span></i></font>
+
+Format: A single data frame with the following columns:
+
+* **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
+* **<span style="color:#009688">"Name":</span>** Site long name
+* **<span style="color:#009688">"Source":</span>** Site data source
+* **<span style="color:#009688">"Lat":</span>** Site Latitude
+* **<span style="color:#009688">"Lon":</span>** Site Longitude
+* **<span style="color:#009688">"epsg_crs":</span>** Site coordinate reference system as EPSG code
+* **<span style="color:#009688">"COMID":</span>** NHDPlus_v2 reach COMID
+* **<span style="color:#009688">"VPU":</span>** Vector processing unit
+* **<span style="color:#009688">"StreamOrde":</span>** Stream order (from NHDPlus_v2 flowlines)
+* **<span style="color:#009688">"Azimuth":</span>** Channel azimuth calculated as the circular mean of azimuths for each stream reach based on latitude and longitude of the site location using NHDPlus_v2 hydrography data.
+* **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
+* **<span style="color:#009688">"Width":</span>** Channel width (m)
+* **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
+* **<span style="color:#009688">"ann_GPP_C":</span>** Mean annual cumulative stream GPP (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of GPP (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"upper_GPP_C":</span>** 95th percentile of daily rates of stream GPP (g C m^-2^ d^-1^).
+* **<span style="color:#009688">"ann_ER_C":</span>** Mean annual cumulative stream ER (g C m^-2^ y^-1^). This was calculated by first calculating annual sums of ER (g C m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"lower_ER_C":</span>** 5th percentile of daily rates of stream ER (g C m^-2^ d^-1^). Since ER is negative, you can think of this as equivalent to the 95th percentile done for GPP. 
+* **<span style="color:#009688">"PAR_sum":</span>**  Mean annual cumulative incoming PAR (kmol m^-2^ y^-1^). This was calculated by first calculating annual sums of PAR (kmol m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"Stream_PAR_sum":</span>**  Mean annual cumulative predicted PAR at the stream surface (kmol m^-2^ y^-1^). This was calculated by first calculating annual sums of predicted PAR at the stream surface (kmol m^-2^ y^-1^) for each site year, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"gpp_C_mean":</span>** Mean daily GPP (g C m^-2^ d^-1^)
+* **<span style="color:#009688">"gpp_C_cv":</span>** CV of daily GPP
+* **<span style="color:#009688">"gpp_C_skew":</span>** Skewness of daily GPP
+* **<span style="color:#009688">"gpp_C_kurt":</span>** Kurtosis of daily GPP
+* **<span style="color:#009688">"gpp_C_amp":</span>** Amplitude of daily GPP
+* **<span style="color:#009688">"gpp_C_phase":</span>** Phase of daily GPP (day of year)
+* **<span style="color:#009688">"gpp_C_ar1":</span>** Autoregressive lag-one correlation coefficient of daily GPP
+* **<span style="color:#009688">"er_C_mean":</span>** Mean daily ER (g C m^-2^ d^-1^)
+* **<span style="color:#009688">"er_C_cv":</span>** CV of daily ER
+* **<span style="color:#009688">"er_C_skew":</span>** Skewness of daily ER
+* **<span style="color:#009688">"er_C_kurt":</span>** Kurtosis of daily ER
+* **<span style="color:#009688">"er_C_amp":</span>** Amplitude of daily ER
+* **<span style="color:#009688">"er_C_phase":</span>** Phase of daily ER (day of year)
+* **<span style="color:#009688">"er_C_ar1":</span>** Autoregressive lag-one correlation coefficient of daily ER
+* **<span style="color:#009688">"Wtemp_mean** Mean daily water temperature
+* **<span style="color:#009688">"Wtemp_cv":</span>** CV of daily GPP
+* **<span style="color:#009688">"Wtemp_skew":</span>** Skewness of daily water temperature
+* **<span style="color:#009688">"Wtemp_kurt":</span>** Kurtosis of daily water temperature
+* **<span style="color:#009688">"Wtemp_amp":</span>** Amplitude of daily water temperature
+* **<span style="color:#009688">"Wtemp_phase":</span>** Phase of daily water temperature (day of year)
+* **<span style="color:#009688">"Wtemp_ar1":</span>** Autoregressive lag-one correlation coefficient of daily water temperature
+* **<span style="color:#009688">"Disch_mean":</span>** Mean daily discharge
+* **<span style="color:#009688">"Disch_cv":</span>** CV of daily discharge
+* **<span style="color:#009688">"Disch_skew":</span>** Skewness of daily discharge
+* **<span style="color:#009688">"Disch_kurt":</span>** Kurtosis of daily discharge
+* **<span style="color:#009688">"Disch_amp":</span>** Amplitude of daily discharge
+* **<span style="color:#009688">"Disch_phase":</span>** Phaste of daily discharge (day of year)
+* **<span style="color:#009688">"Disch_ar1":</span>** Autoregressive lag-one correlation coefficient of daily discharge
+* **<span style="color:#009688">"PAR_mean":</span>** Mean daily PAR
+* **<span style="color:#009688">"PAR_cv":</span>** CV of daily PAR
+* **<span style="color:#009688">"PAR_skew":</span>** Skewness of daily PAR
+* **<span style="color:#009688">"PAR_kurt":</span>** Kurtosis of daily PAR
+* **<span style="color:#009688">"PAR_amp":</span>** Amplitude of daily PAR
+* **<span style="color:#009688">"PAR_phase":</span>** Phase of daily PAR (day of year)
+* **<span style="color:#009688">"PAR_ar1":</span>** Autoregressive lag-one correlation coefficient of daily PAR
+* **<span style="color:#009688">"LAI_mean":</span>** Mean daily LAI (m^2^ m^-2^)
+* **<span style="color:#009688">"LAI_cv":</span>** CV of LAI
+* **<span style="color:#009688">"LAI_skew":</span>** Skewness of LAI
+* **<span style="color:#009688">"LAI_kurt":</span>** Kurtosis of LAI
+* **<span style="color:#009688">"LAI_amp":</span>** Amplitude of LAI
+* **<span style="color:#009688">"LAI_phase":</span>** Phase of LAI  (day of year)
+* **<span style="color:#009688">"LAI_ar1":</span>** Autoregressive lag-one correlation coefficient of daily LAI
+* **<span style="color:#009688">"MOD_ann_NPP":</span>** Mean annual MODIS NPP (g C m^-2^ y^-1^) for the concurrent period of record for stream metabolism data at a site. Annual sums of NPP (g C m^-2^ d^-y^) were available for each site year and then the mean was taken to get a mean annual rate for each site.
+
+<font size="3"><i><span style="color:#00cc99">lotic_gap_filled.rds</span></i></font>
+
+Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site. The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
+
+* **<span style="color:#009688">"Date":</span>** Date in YYYY-MM-DD format
+* **<span style="color:#009688">"U_ID":</span>** Unique date identifier (format as year + DOY)
+* **<span style="color:#009688">"Year":</span>** Year
+* **<span style="color:#009688">"DOY":</span>** Day of year (1 to 365 or 366)
+* **<span style="color:#009688">"GPP_raw":</span>** Stream GPP estimates (g O2 m^-2^ d^-1^) from Appling et al. (2018), raw data
+* **<span style="color:#009688">"ER_raw":</span>** Stream ER estimates (g O2 m^-2^ d^-1^) from Appling et al. (2018), raw data
+* **<span style="color:#009688">"GPP":</span>** Stream GPP estimates (g O2 m^-2^ d^-1^) from Appling et al. (2018), negative values replaced with NA
+* **<span style="color:#009688">"ER":</span>** Stream ER estimates (g O2 m^-2^ d^-1^) from Appling et al. (2018), positive values replaced with NA
+* **<span style="color:#009688">"K600":</span>** Model estimate of K600, the mean reaeration rate coefficient, scaled to a Schmidt number of 600, for this date. Value is the median of the post warmup MCMC distribution
+* **<span style="color:#009688">"DO.obs":</span>** Mean dissolved oxygen concentration (mg O2 L^-1^) for the date (4am to 3:59am)
+* **<span style="color:#009688">"DO.sat":</span>** Mean theoretical saturation concentration (mg O2 L^-1^) for the date (4am to 3:59am)
+* **<span style="color:#009688">"temp.water":</span>** Mean water temperature (degreees C) for the date (4am to 3:59pm)
+* **<span style="color:#009688">"discharge":</span>** Mean discharge (m^3^ s^-1^) for the date (4am to 3:59pm)
+* **<span style="color:#009688">"PAR_sum":</span>** Daily sum of incoming above canopy PAR (mol m^-2^ d^-1^)
+* **<span style="color:#009688">"Stream_PAR_sum":</span>** Daily sum of PAR estimated at the stream surface (mol m^-2^ d^-1^)
+* **<span style="color:#009688">"LAI_proc":</span>** MODIS LAI data that has been processed and gap-filled (m^2^ m^-2^)
+* **<span style="color:#009688">"GPP_filled":</span>** Gap-filled stream GPP estimates (g O2 m^-2^ d^-1^)
+* **<span style="color:#009688">"ER_filled":</span>** Gap-filled stream ER estimates (g O2 m^-2^ d^-1^)
+* **<span style="color:#009688">"NEP_filled":</span>** Gap-filled stream NEP estimates (g O2 m^-2^ d^-1^)
+* **<span style="color:#009688">"GPP_C_filled":</span>** Gap-filled stream GPP estimates, expressed in carbon (g C m^-2^ d^-1^)
+* **<span style="color:#009688">"ER_C_filled":</span>** Gap-filled stream ER estimates, expressed in carbon (g C m^-2^ d^-1^)
+* **<span style="color:#009688">"NEP_c_filled":</span>** Gap-filled stream NEP estimates, expressed in carbon (g C m^-2^ d^-1^)
+* **<span style="color:#009688">"Wtemp_filled":</span>** Gap-filled mean water temperature from the "temp.water" column.
+* **<span style="color:#009688">"Disch_filled":</span>** Gap-filled mean discharge from the "discharge" column
+* **<span style="color:#009688">"PAR_filled":</span>** Gap-filled daily sum of incoming above canopy PAR, from the "PAR_sum column
+* **<span style="color:#009688">"GPP_norm":</span>** Z-normalized GPP
+* **<span style="color:#009688">"ER_norm":</span>** Z-normalized ER
+* **<span style="color:#009688">"NEP_norm":</span>** Z-normalized NEP
+* **<span style="color:#009688">"Wtemp_norm":</span>** Z-normalized water temperature
+* **<span style="color:#009688">"PAR_norm":</span>** Z-normalized daily sum of incoming above canopy PAR
+
+#### 2.2 Standardized and filtered FLUXNET 
+
+This is the dataset of terrestrial ecosystem fluxes used in Bernhardt et al. (in prep). This data has been filtered based on data availability and several basic site metrics were calculated for use in analysis.
+
+<font size="3"><i><span style="color:#00cc99">fluxnet_site_info_filtered.rds</span></i></font>
+
+Format: A single data frame with the following columns:
+
+* **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
+* **<span style="color:#009688">"Name":</span>** Site long name
+* **<span style="color:#009688">"Lat":</span>** Site Latitude
+* **<span style="color:#009688">"Lon":</span>** Site Longitude
+* **<span style="color:#009688">"ann_GPP":</span>** Mean annual cumulative GPP (g C m^-2^ y^-1^). This was calculated from the annual sums of GPP (g C m^-2^ y^-1^) for each site year provided by FLUXNET, and then taking the mean annual rate for each site.
+* **<span style="color:#009688">"upper_GPP":</span>** 95th percentile of daily rates of GPP (g C m^-2^ d^-1^).
+* **<span style="color:#009688">"ann_ER":</span>** Mean annual cumulative ER (g C m^-2^ y^-1^). This was calculated from the annual sums of ER (g C m^-2^ y^-1^) for each site year provided by FLUXNET, and then taking the mean annual rate for each site
+* **<span style="color:#009688">"lower_ER":</span>** 5th percentile of daily rates of GPP (g C m^-2^ d^-1^). Since ER is negative, you can think of this as equivalent to the 95th percentile done for GPP. 
+
+<font size="3"><i><span style="color:#00cc99">fluxnet_filtered_metabolism.rds</span></i></font>
+
+Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site. The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
+
+* **<span style="color:#009688">"Date":</span>** Date in YYYY-MM-DD format
+* **<span style="color:#009688">"U_ID":</span>** Unique date identifier (format as year + DOY)
+* **<span style="color:#009688">"Year":</span>** Year
+* **<span style="color:#009688">"DOY":</span>** Day of year (1 to 365 or 366)
+* **<span style="color:#009688">"GPP_raw":</span>** FLUXNET annual GPP (sum from daily estimates) (g C m^-2^ y^-1^) "GPP_NT_VUT_REF", raw data. Gross Primary Production, from Nighttime partitioning method, reference version selected from GPP versions using a model efficiency approach.
+* **<span style="color:#009688">"ER_raw":</span>** FLUXNET annual ER (sum from daily estimates) (g C m^-2^ d^-y^) "RECO_NT_VUT_REF", raw data. Ecosystem Respiration, from Nighttime partitioning method, reference selected from RECO versions using a model efficiency approach.
+* **<span style="color:#009688">"GPP":</span>** FLUXNET annual GPP (sum from daily estimates) (g C m^-2^ y^-1^) "GPP_NT_VUT_REF", negative values replaced with NA. Gross Primary Production, from Nighttime partitioning method, reference version selected from GPP versions using a model efficiency approach. 
+* **<span style="color:#009688">"ER":</span>** FLUXNET annual ER (sum from daily estimates) (g C m^-2^ d^-y^) "RECO_NT_VUT_REF", positive values replaced with NA. Ecosystem Respiration, from Nighttime partitioning method, reference selected from RECO versions using a model efficiency approach.
+* **<span style="color:#009688">"Net":</span>** FLUXNET NEE (changed to NEP by * -1) "NEE_VUT_REF". I derived this from data of this description:Net Ecosystem Exchange, using Variable Ustar Threshold (VUT) for each year, reference selected on the basis of the model efficiency.
+* **<span style="color:#009688">"Temp":</span>** Average air temperature from daily data (degrees C)
+* **<span style="color:#009688">"Precip":</span>** Average precipition from daily data (mm)
+* **<span style="color:#009688">"VPD":</span>** Average vapor pressure deficit from daily data (hPa)
+* **<span style="color:#009688">"SW":</span>** Average incoming shortwave radiation from daily data (W m^-2)
+
+```{r Export datasets, include = FALSE}
+#Standardized, unfiltered, lotic metabolism
+  saveRDS(lotic_site_info_full, "./output_data/lotic_site_info_full.rds")
+  saveRDS(lotic_standardized_full, "./output_data/lotic_standardized_full.rds")
+  
+#Standardized, filtered, gap-filled lotic metabolism
+  saveRDS(lotic_site_info_filtered, "./output_data/lotic_site_info_filtered.rds")
+  saveRDS(lotic_gap_filled, "./output_data/lotic_gap_filled.rds")
+
+#Standardized and filtered FLUXNET
+  saveRDS(fluxnet_site_info_filtered, "./output_data/fluxnet_site_info_filtered.rds")
+  saveRDS(fluxnet_filtered_metabolism, "./output_data/fluxnet_filtered_metabolism.rds")
+```
+ 
