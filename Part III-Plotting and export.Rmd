@@ -294,17 +294,16 @@ log_er_fnet = log(fnet_site$ER_site_mean * -1) * -1
 log_gpp_sp = log(sp_site$GPP_site_mean)
 log_er_sp = log(sp_site$ER_site_mean * -1) * -1
 
-gpptck = c(1, 10, 100, 1000, 10000)
-# gpptck = c(0.1, 1, 10, 100, 1000, 10000)
-ertck = rev(c(10000, 1000, 100, 10, 1))
+gpptck = c(1:9 %o% 10^(0:3))
+ertck = rev(c(1:9 %o% 10^(0:3)))
 
 # plot(log_gpp_fnet,
 #      log_er_fnet, col=alpha(fnetcolor, alpha=0.5),
 plot(log_gpp_fnet[fnet_high_cov_bool],
      log_er_fnet[fnet_high_cov_bool], col=alpha(fnetcolor, alpha=0.5),
      xlab='', ylab='', bg=alpha(fnetcolor, alpha=0.5),
-     cex=1.5, cex.lab=axis_cex, cex.axis=axis_cex, ylim=-log(rev(range(ertck))),
-     pch=21, yaxt='n', xaxt='n', xlim=log(range(gpptck)), lwd=2)
+     cex=1.5, cex.lab=axis_cex, cex.axis=axis_cex, ylim=-log(c(5000, 5)),
+     pch=21, yaxt='n', xaxt='n', xlim=log(c(20, 5000)), lwd=2)
 mtext(expression(paste("Cumulative GPP (gC"~"m"^"-2"*" y"^"-1"*')')),
       1, line=5, cex=axis_cex)
 mtext(expression(paste("Cumulative ER (gC"~"m"^"-2"*" y"^"-1"*')')),
@@ -331,9 +330,13 @@ all_er[all_er >= 0] = NA
 errng = range(all_er, na.rm=TRUE)
 
 gpptck_log = log(gpptck)
-axis(1, at=gpptck_log, labels=gpptck, cex.axis=axis_cex, padj=0.4)
+axis(1, at=gpptck_log, labels=rep('', length(gpptck_log)), cex.axis=axis_cex, padj=0.4, tcl=-0.4)
+axis(1, at=log(c(20, 100, 1000, 5000)), labels=c(20, 100, 1000, 5000),
+     cex.axis=axis_cex, padj=0.4, lwd.ticks=2, tcl=-.6)
 ertck_log = log(ertck) * -1
-axis(2, at=ertck_log, labels=ertck * -1, cex.axis=axis_cex, padj=0.2)
+axis(2, at=ertck_log, labels=rep('', length(ertck_log)), cex.axis=axis_cex, padj=0.4, tcl=-0.4)
+axis(2, at=log(c(5000, 1000, 100, 10, 1)) * -1, labels=c(5000, 1000, 100, 10, 1) * -1,
+     cex.axis=axis_cex, padj=0.2, lwd.ticks=2, tcl=-.6)
 
 abline(a=0, b=-1, lty=2)
 
@@ -440,16 +443,26 @@ lips_plot = function(quant_filt=NULL, outfile, use_fnet=FALSE, ylims=NULL,
 
     var_quant_filt = NULL
     if(! is.null(quant_filt)){
-        quant_comp = strsplit(quant_filt, ' ')[[1]]
-        qf = quantile(dset_site[, quant_comp[1], drop=TRUE], na.rm=TRUE,
-        probs=as.numeric(quant_comp[3]))
+        
+        filter_expr <- c()
+        for(i in seq_along(quant_filt)){
+
+            quant_comp = strsplit(quant_filt[i], ' ')[[1]]
+            qf = quantile(dset_site[, quant_comp[1], drop=TRUE], na.rm=TRUE,
+                          probs = as.numeric(quant_comp[3]))
+
+            filter_expr = c(filter_expr,
+                            paste(quant_comp[1], quant_comp[2], qf))
+        }
+
+        if(length(filter_expr) > 1){
+            filter_expr = paste(filter_expr, collapse = ' & ')
+        }
+
         filt_sites = dset_site %>%
-            filter_(paste(quant_comp[1], quant_comp[2], qf)) %>%
+            filter_(filter_expr) %>%
             pull(sitecode)
         dset = filter(dset, sitecode %in% filt_sites)
-
-        var_quant_filt = paste0(quant_comp[1], ' ', quant_comp[2], ' ',
-                                as.numeric(quant_comp[3]) * 100, '%')
     }
 
     nsites_included = length(unique(dset$sitecode))
@@ -625,6 +638,24 @@ lips_plot(quant_filt='Stream_PAR_sum > 0.75', outfile=here('figures', 'lips', 'l
           ylims=lips_ylim, wee=TRUE)
 lips_plot(quant_filt='Stream_PAR_sum < 0.25', outfile=here('figures', 'lips', 'lips_PAR_25.jpeg'),
           ylims=lips_ylim, wee=TRUE)
+
+#cross-subsets
+lips_plot(quant_filt = c('Stream_PAR_sum < 0.25', 'Disch_skew < 0.25'),
+          outfile = 'figures/lips/lips_cross/lips_PAR25-Qskew25.jpeg',
+          ylims = lips_ylim,
+          wee = TRUE)
+lips_plot(quant_filt = c('Stream_PAR_sum < 0.25', 'Disch_skew > 0.75'),
+          outfile = 'figures/lips/lips_cross/lips_PAR25-Qskew75.jpeg',
+          ylims = lips_ylim,
+          wee = TRUE)
+lips_plot(quant_filt = c('Stream_PAR_sum > 0.75', 'Disch_skew > 0.75'),
+          outfile = 'figures/lips/lips_cross/lips_PAR75-Qskew75.jpeg',
+          ylims = lips_ylim,
+          wee = TRUE)
+lips_plot(quant_filt = c('Stream_PAR_sum > 0.75', 'Disch_skew < 0.25'),
+          outfile = 'figures/lips/lips_cross/lips_PAR75-Qskew25.jpeg',
+          ylims = c(-5, 5.6),
+          wee = TRUE)
 ```
 
 # (Figure 4) bubble plots
