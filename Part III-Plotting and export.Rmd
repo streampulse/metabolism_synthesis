@@ -3,6 +3,8 @@ title: "Part III: Plotting, supplementation, and export of stats dataset"
 author: "Mike Vlah"
 date: "7/5/2021"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 # Description
@@ -31,7 +33,7 @@ library(plotrix)
 library(nhdR)
 library(here)
 
-if(file.exists(".here") == FALSE){here::set_here()}
+if(! file.exists(".here")){here::set_here('.')}
 
 # setwd('~/git/streampulse/metab_synthesis_2/')
 
@@ -60,7 +62,8 @@ Columns Stream_PAR_sum, Disch_ar1, MOD_ann_NPP will be used in plots.
 site_data_1 = readRDS('output_data/lotic_site_info_filtered.rds') %>%
     as_tibble() %>%
     select(sitecode = Site_ID,
-           Stream_PAR_sum, Disch_ar1, MOD_ann_NPP)
+           Stream_PAR_sum, Disch_ar1, Disch_skew, MOD_ann_NPP) %>%
+    filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
 ```
 
 # load and prepare fluxnet data
@@ -82,14 +85,15 @@ for(i in 1:length(fnet_ann)){
 fnet_ann = fnet_ann[! fnet_names %in% restricted_use_sites]
 
 fnet_full = Reduce(bind_rows, fnet_ann) %>%
-    as_tibble()
+    as_tibble() %>%
+    filter(sitecode != 'CZ-BK2')
 
 fnet_site = readRDS(here('output_data', 'fluxnet_site_info_filtered.rds')) %>%
     as_tibble() %>%
     select(sitecode = Site_ID,
            GPP_site_mean = ann_GPP,
            ER_site_mean = ann_ER) %>%
-    filter(! is.na(GPP_site_mean),
+    filter(! is.na(GPP_site_mean), #CZ-BK2 has NaN
            ! is.na(ER_site_mean)) %>%
     mutate(NEP_site_mean = GPP_site_mean + ER_site_mean) %>%
     arrange(sitecode)
@@ -123,7 +127,8 @@ for(i in 1:length(sp_list)){
 sp_full = Reduce(bind_rows, sp_list) %>%
     as_tibble() %>%
     select(sitecode, Date, Year, DOY, GPP_C, ER_C, GPP_C_filled, ER_C_filled) %>%
-    arrange(sitecode, Date)
+    arrange(sitecode, Date) %>%
+    filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
 
 sp_site = sp_full %>%
     group_by(sitecode, Year) %>%
@@ -431,6 +436,7 @@ See code for details
 
 ```{r Figs 2 and 3, include = FALSE, eval = FALSE}
 dir.create(here('figures' ,'lips'), showWarnings = FALSE)
+dir.create(here('figures', 'lips', 'lips_cross'), showWarnings = FALSE)
 dir.create(here('figures', 'probdens'), showWarnings = FALSE)
 
 axis_cex = 2.4 #applies to labels and tick values
@@ -814,10 +820,12 @@ Combine site data compiled in parts II and III with coverage metrics, export for
 ```{r export statset, include = FALSE, eval = FALSE}
 site_data_A = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
     as_tibble() %>%
-    rename(sitecode = Site_ID)
+    rename(sitecode = Site_ID) %>%
+    filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
 site_data_B = readRDS(here('output_data' ,'spatial' ,'nhdplusv2_data.rds')) %>%
     select(sitecode, lat, lon, stream_order = STREAMORDE, slope = SLOPE,
-           ws_area_km2 = TOTDASQKM_corr)
+           ws_area_km2 = TOTDASQKM_corr) %>%
+    filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
 site_data = full_join(site_data_A, site_data_B)
 
 stats_set = site_data %>%
@@ -833,7 +841,6 @@ write.csv(stats_set, here('export_datasets' ,'streampulse_synthesis_statset.csv'
 This figure may end up in the main text, an appendix, or nowhere. (jotting this here in case I forget to update after we decide what to do with figure X)
 
 ```{r Figure X, include = FALSE, eval = FALSE}
-dir.create(here('figures', 'interannual_CVs'), showWarnings = FALSE)
 
 fnet_cvs = fnet_full %>%
     # mutate(NEP = GPP + ER) %>%
@@ -990,8 +997,8 @@ barplot(maxmonths_gpp, border = NA, beside = TRUE,
         ylab = 'n', main = 'Highest GPP months')
 legend(x=25, y=60, legend=c('FLUXNET', 'StreamPULSE'),
        fill = c(fnetcolor, spcolor), bty = 'n', border = NA)
-text(x=25, y=52, adj = 0, paste('n FLUXNET =', sum(maxmonths_sp_gpp)))
-text(x=25, y=49, adj = 0, paste('n StreamPULSE =', sum(maxmonths_fnet_gpp)))
+text(x=25, y=52, adj = 0, paste('n FLUXNET =', sum(maxmonths_fnet_gpp)))
+text(x=25, y=49, adj = 0, paste('n StreamPULSE =', sum(maxmonths_sp_gpp)))
 
 dev.off()
 
@@ -1020,8 +1027,8 @@ maxmonths_etc_fnet_er = sitemonths_fnet %>%
     mutate(SE = ER_sd / sqrt(n))
 
 maxmonths_sp_er = table(maxmonths_etc_sp_er$month)
-tt = table(maxmonths_etc_fnet_er$month)
-maxmonths_fnet_er = c(tt[1:9], c('10' = 0), tt[10:11])
+maxmonths_fnet_er = table(maxmonths_etc_fnet_er$month)
+# maxmonths_fnet_er = c(tt[1:9], c('10' = 0), tt[11:12])
 maxmonths_er = matrix(c(maxmonths_fnet_er, maxmonths_sp_er),
                    nrow = 2, byrow = TRUE,
                    dimnames = list(c('FLUXNET', 'StreamPULSE'),
@@ -1035,9 +1042,74 @@ barplot(maxmonths_er, border = NA, beside = TRUE,
         ylab = 'n', main = 'Highest ER months')
 legend(x=25, y=55, legend=c('FLUXNET', 'StreamPULSE'),
        fill = c(fnetcolor, spcolor), bty = 'n', border = NA)
-text(x=25, y=48, adj = 0, paste('n FLUXNET =', sum(maxmonths_sp_er)))
-text(x=25, y=45, adj = 0, paste('n StreamPULSE =', sum(maxmonths_fnet_er)))
+text(x=25, y=48, adj = 0, paste('n FLUXNET =', sum(maxmonths_fnet_er)))
+text(x=25, y=45, adj = 0, paste('n StreamPULSE =', sum(maxmonths_sp_er)))
 
 dev.off()
 
+```
+
+# (Figure Z) a few freq dists of daily Q (and corresponding hydrographs)
+
+This figure may end up in the main text, an appendix, or nowhere. (jotting this here in case I forget to update after we decide what to do with figure Z)
+
+```{r Figure Z, include = FALSE, eval = FALSE}
+
+dir.create(here('figures', 'daily_Q_freq_dists'), showWarnings = FALSE)
+
+sp_q = Reduce(bind_rows, sp_list) %>%
+    as_tibble() %>%
+    select(sitecode, Date, Year, DOY, Disch_filled)
+
+high_skew_site = sp_site %>%
+    arrange(desc(Disch_skew)) %>%
+    slice(54) %>%
+    pull(sitecode)
+high_skewness = pull(sp_site[sp_site$sitecode == high_skew_site, 'Disch_skew'])
+
+low_skew_site = sp_site %>%
+    arrange(Disch_skew) %>%
+    slice(11) %>%
+    pull(sitecode)
+low_skewness = pull(sp_site[sp_site$sitecode == low_skew_site, 'Disch_skew'])
+
+jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
+     filename=here('figures', 'daily_Q_freq_dists', 'high_skew_site.jpg'))
+hist(pull(sp_q[sp_q$sitecode == high_skew_site, 'Disch_filled']),
+     freq = TRUE,
+     breaks = 75,
+     xlab = expression('Discharge (m' ^ 3 * 's' ^ -1 * ')'),
+     las = 1,
+     main = paste0('Mean daily discharge at ', high_skew_site,
+                   ' (L-skew ratio: ', high_skewness, '; high skewness)'))
+dev.off()
+
+jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
+     filename=here('figures', 'daily_Q_freq_dists', 'high_skew_site_hydrograph.jpg'))
+plot(pull(sp_q[sp_q$sitecode == high_skew_site, 'Date']),
+     pull(sp_q[sp_q$sitecode == high_skew_site, 'Disch_filled']),
+     type = 'l',
+     xlab = 'Date', ylab = expression('Discharge (m' ^ 3 * 's' ^ -1 * ')'),
+     main = paste(high_skew_site, 'hydrograph'))
+dev.off()
+
+jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
+     filename=here('figures', 'daily_Q_freq_dists', 'low_skew_site.jpg'))
+hist(pull(sp_q[sp_q$sitecode == low_skew_site, 'Disch_filled']),
+     freq = TRUE,
+     breaks = 75,
+     xlab = expression('Discharge (m' ^ 3 * 's' ^ -1 * ')'),
+     las = 1,
+     main = paste0('Mean daily discharge at ', low_skew_site,
+                   ' (L-skew ratio: ', low_skewness, '; low skewness)'))
+dev.off()
+
+jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
+     filename=here('figures', 'daily_Q_freq_dists', 'low_skew_site_hydrograph.jpg'))
+plot(pull(sp_q[sp_q$sitecode == low_skew_site, 'Date']),
+     pull(sp_q[sp_q$sitecode == low_skew_site, 'Disch_filled']),
+     type = 'l',
+     xlab = 'Date', ylab = expression('Discharge (m' ^ 3 * 's' ^ -1 * ')'),
+     main = paste(low_skew_site, 'hydrograph'))
+dev.off()
 ```
