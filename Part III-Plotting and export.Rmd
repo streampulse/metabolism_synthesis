@@ -632,9 +632,9 @@ pdf_plot('Stream_PAR_sum', here('figures', 'probdens', 'probdens_PAR.jpeg'))
 
 #subsets
 lips_ylim = c(-5, 5)
-lips_plot(quant_filt='Disch_ar1 > 0.75', outfile=here('figures', 'lips', 'lips_Qar1_75.jpeg'),
+lips_plot(quant_filt='Disch_skew > 0.75', outfile=here('figures', 'lips', 'lips_Qskew_75.jpeg'),
           ylims=lips_ylim, wee=TRUE)
-lips_plot(quant_filt='Disch_ar1 < 0.25', outfile=here('figures', 'lips', 'lips_Qar1_25.jpeg'),
+lips_plot(quant_filt='Disch_skew < 0.25', outfile=here('figures', 'lips', 'lips_Qskew_25.jpeg'),
           ylims=lips_ylim, wee=TRUE)
 lips_plot(quant_filt='MOD_ann_NPP > 0.75', outfile=here('figures', 'lips', 'lips_MODIS_75.jpeg'),
           ylims=lips_ylim, wee=TRUE)

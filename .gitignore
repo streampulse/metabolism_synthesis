@@ -6,3 +6,5 @@
 /export_datasets
 /output
 make_plots_etc.R
+.here
+figures.*
