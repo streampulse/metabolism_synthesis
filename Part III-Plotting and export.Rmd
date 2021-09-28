@@ -33,9 +33,8 @@ library(plotrix)
 library(nhdR)
 library(here)
 
+# knitr::opts_knit$set(root.dir = '/home/mike/git/streampulse/metab_synthesis_2')
 if(! file.exists(".here")){here::set_here('.')}
-
-# setwd('~/git/streampulse/metab_synthesis_2/')
 
 dir.create(here('figures'),
            showWarnings = FALSE)
@@ -1112,4 +1111,61 @@ plot(pull(sp_q[sp_q$sitecode == low_skew_site, 'Date']),
      xlab = 'Date', ylab = expression('Discharge (m' ^ 3 * 's' ^ -1 * ')'),
      main = paste(low_skew_site, 'hydrograph'))
 dev.off()
+```
+
+# (Figure S1 - sitemap)
+
+```{r Figure S1, include = FALSE, eval = FALSE}
+
+library(sf)
+library(tmap)
+library(tmaptools)
+
+sites_fnet = readRDS(here('output_data', 'fluxnet_site_info_filtered.rds')) %>%
+    as_tibble() %>%
+    select(site_code = Site_ID, Lat, Lon) %>%
+    mutate(source = 'FLUXNET') %>%
+    filter(! is.na(Lon)) %>%
+    st_as_sf(coords = c('Lon', 'Lat'),
+             remove = FALSE,
+             crs = 4326)
+    
+sites_sp = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
+    as_tibble() %>%
+    select(site_code = Site_ID, Lat, Lon) %>%
+    mutate(source = 'StreamPULSE') %>%
+    st_as_sf(coords = c('Lon', 'Lat'),
+             remove = FALSE,
+             crs = 4326)
+
+basemap = tmaptools::read_osm(sites_fnet,
+                              # ext = 1.1,
+                              relative = TRUE,
+                              ylim = c(-0.04, 1.01),
+                              xlim = c(-0.04, 1.02),
+                              type = 'nps')
+
+tmap_mode('plot')
+
+map = tm_shape(basemap) + tm_rgb() +
+    tm_shape(sites_sp) + tm_symbols(shape = 21, col = spcolor, size = 0.3,
+                                    border.lwd = 1, border.col = 'black') +
+    tm_shape(sites_fnet) + tm_symbols(shape = 21, col = fnetcolor, size = 0.3,
+                                      border.lwd = 1, border.col = 'black') +
+    # tm_compass(type = 'arrow', position = c(0.1, 0.01), show.labels = 1,
+    #            size = 2, text.size = 1) +
+    # tm_style(style='white') +
+    # tm_layout(frame=TRUE, bg.color='white') +
+    tm_scale_bar(text.size = 0.6, position=c(0, 0), width = 0.2) +
+    tm_add_legend(type = 'symbol', labels = 'StreamPULSE', col = spcolor,
+                  shape = 21, border.col = 'black') +
+    tm_add_legend(type = 'symbol', labels = 'FLUXNET', col = fnetcolor,
+                  shape = 21, border.col = 'black') +
+    tm_legend(show = TRUE, position = c(0.005, 0.09), outside = FALSE,
+              bg.color = 'gray94', frame = TRUE, text.size = 0.6,
+              between.margin = 0)
+
+tmap_save(map, filename = here('figures', 'sitemap.jpg'), bg = 'white',
+          dpi = 800, width = 6, units = 'in')
+          # compression = 'lzw',
 ```
