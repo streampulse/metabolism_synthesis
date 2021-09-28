@@ -1148,19 +1148,19 @@ basemap = tmaptools::read_osm(sites_fnet,
 tmap_mode('plot')
 
 map = tm_shape(basemap) + tm_rgb() +
-    tm_shape(sites_sp) + tm_symbols(shape = 21, col = spcolor, size = 0.3,
-                                    border.lwd = 1, border.col = 'black') +
-    tm_shape(sites_fnet) + tm_symbols(shape = 21, col = fnetcolor, size = 0.3,
-                                      border.lwd = 1, border.col = 'black') +
+    tm_shape(sites_sp) + tm_symbols(shape = 21, col = 'steelblue3', size = 0.1,
+                                    border.lwd = 0.5, border.col = 'black') +
+    tm_shape(sites_fnet) + tm_symbols(shape = 21, col = fnetcolor, size = 0.1,
+                                      border.lwd = 0.5, border.col = 'black') +
     # tm_compass(type = 'arrow', position = c(0.1, 0.01), show.labels = 1,
     #            size = 2, text.size = 1) +
     # tm_style(style='white') +
     # tm_layout(frame=TRUE, bg.color='white') +
     tm_scale_bar(text.size = 0.6, position=c(0, 0), width = 0.2) +
-    tm_add_legend(type = 'symbol', labels = 'StreamPULSE', col = spcolor,
-                  shape = 21, border.col = 'black') +
+    tm_add_legend(type = 'symbol', labels = 'StreamPULSE', col = 'steelblue3',
+                  shape = 21, border.col = 'black', border.lwd = 1) +
     tm_add_legend(type = 'symbol', labels = 'FLUXNET', col = fnetcolor,
-                  shape = 21, border.col = 'black') +
+                  shape = 21, border.col = 'black', border.lwd = 1) +
     tm_legend(show = TRUE, position = c(0.005, 0.09), outside = FALSE,
               bg.color = 'gray94', frame = TRUE, text.size = 0.6,
               between.margin = 0)
