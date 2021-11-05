@@ -52,6 +52,7 @@ Format: A single data frame with the following columns:
 
 Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site. The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
 
+* **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
 * **<span style="color:#009688">"Date":</span>** Date in YYYY-MM-DD format
 * **<span style="color:#009688">"U_ID":</span>** Unique date identifier (format as year + DOY)
 * **<span style="color:#009688">"Year":</span>** Year
@@ -143,12 +144,15 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"LAI_phase":</span>** Phase of LAI  (day of year)
 * **<span style="color:#009688">"LAI_ar1":</span>** Autoregressive lag-one correlation coefficient of daily LAI
 * **<span style="color:#009688">"MOD_ann_NPP":</span>** Mean annual MODIS NPP (g C m^-2^ y^-1^) for the concurrent period of record for stream metabolism data at a site. Annual sums of NPP (g C m^-2^ d^-y^) were available for each site year and then the mean was taken to get a mean annual rate for each site.
-
+* **<span style="color:#009688">"ndays":</span>** Total number of days with daily GPP (non gap-filled) for the site in the filtered dataset
+* **<span style="color:#009688">"nyears":</span>** Total number of years for the site in the filtered dataset
+* **<span style="color:#009688">"coverage":</span>** Total coverage of daily GPP (non gap-filled) for the site, calculated as ndays / all possible days for all site-years included in the filtered dataset. Ranges from 0-1.
 
 <font size="3"><i><span style="color:#00cc99">lotic_gap_filled.rds</span></i></font>
 
 Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site. The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
 
+* **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
 * **<span style="color:#009688">"Date":</span>** Date in YYYY-MM-DD format
 * **<span style="color:#009688">"U_ID":</span>** Unique date identifier (format as year + DOY)
 * **<span style="color:#009688">"Year":</span>** Year
@@ -196,6 +200,9 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"upper_GPP":</span>** 95th percentile of daily rates of GPP (g C m^-2^ d^-1^).
 * **<span style="color:#009688">"ann_ER":</span>** Mean annual cumulative ER (g C m^-2^ y^-1^). This was calculated from the annual sums of ER (g C m^-2^ y^-1^) for each site year provided by FLUXNET, and then taking the mean annual rate for each site
 * **<span style="color:#009688">"lower_ER":</span>** 5th percentile of daily rates of GPP (g C m^-2^ d^-1^). Since ER is negative, you can think of this as equivalent to the 95th percentile done for GPP. 
+* **<span style="color:#009688">"ndays":</span>** Total number of days with daily GPP (non gap-filled) for the site in the filtered dataset
+* **<span style="color:#009688">"nyears":</span>** Total number of years for the site in the filtered dataset
+* **<span style="color:#009688">"coverage":</span>** Total coverage of daily GPP (non gap-filled) for the site, calculated as ndays / all possible days for all site-years included in the filtered dataset. Ranges from 0-1.
 
 <font size="3"><i><span style="color:#00cc99">fluxnet_filtered_metabolism.rds</span></i></font>
 
