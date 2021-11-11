@@ -33,7 +33,10 @@ library(plotrix)
 library(nhdR)
 library(here)
 
-# knitr::opts_knit$set(root.dir = '/home/mike/git/streampulse/metab_synthesis_2')
+knitr::opts_knit$set(root.dir = '/home/mike/git/streampulse/metab_synthesis_2')
+```
+
+```{r setup2, include = FALSE}
 if(! file.exists(".here")){here::set_here('.')}
 
 dir.create(here('figures'),
@@ -61,8 +64,8 @@ Columns Stream_PAR_sum, Disch_ar1, MOD_ann_NPP will be used in plots.
 site_data_1 = readRDS('output_data/lotic_site_info_filtered.rds') %>%
     as_tibble() %>%
     select(sitecode = Site_ID,
-           Stream_PAR_sum, Disch_ar1, Disch_skew, MOD_ann_NPP) %>%
-    filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
+           Stream_PAR_sum, Disch_ar1, Disch_skew, MOD_ann_NPP, nyears, ndays, coverage)
+
 ```
 
 # load and prepare fluxnet data
@@ -126,8 +129,7 @@ for(i in 1:length(sp_list)){
 sp_full = Reduce(bind_rows, sp_list) %>%
     as_tibble() %>%
     select(sitecode, Date, Year, DOY, GPP_C, ER_C, GPP_C_filled, ER_C_filled) %>%
-    arrange(sitecode, Date) %>%
-    filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
+    arrange(sitecode, Date)
 
 sp_site = sp_full %>%
     group_by(sitecode, Year) %>%
@@ -159,21 +161,15 @@ sp_lips = sp_full %>%
 For some plots, we use different markers to indicate sites with high coverage for metabolism estimates (>= 80% of days across years) and those with low coverage (< 80% of days). Here we create vectors of sitecodes that fit each of these criteria, and boolean vectors representing the same, to be used for subsetting later.
 
 ```{r split by coverage, include = FALSE, eval = FALSE}
-coverage_sp = sp_full %>%
-    group_by(sitecode) %>%
-    summarize(ndays = sum(! is.na(GPP_C)),
-              nyears = length(unique(Year)),
-              coverage = round(ndays / (nyears * 365),
-                               digits = 2),
-              .groups = 'drop')
 
-coverage_fnet = fnet_full %>%
-    group_by(sitecode) %>%
-    summarize(ndays = sum(! is.na(GPP)),
-              nyears = length(unique(Year)),
-              coverage = round(ndays / (nyears * 365),
-                               digits = 2),
-              .groups = 'drop')
+coverage_sp = site_data_1 %>%
+    select(sitecode, ndays, nyears, coverage)
+
+coverage_fnet = readRDS('output_data/fluxnet_site_info_filtered.rds') %>%
+    as_tibble() %>%
+    select(sitecode = Site_ID,
+           nyears, ndays, coverage) %>%
+    filter(sitecode != 'CZ-BK2')
 
 sp_high_cov_sites = coverage_sp %>%
     filter(coverage >= 0.8) %>%
@@ -186,9 +182,14 @@ fnet_high_cov_sites = coverage_fnet %>%
 fnet_high_cov_bool = fnet_site$sitecode %in% fnet_high_cov_sites
 ```
 
-# (skip if only plotting) generate additional site data to be used in analyses
+# (skip if only plotting) generate additional site data to be used in SEM
 
 Here we acquire areas and average slopes for the watersheds of each site, and the Strahler order of each stream at the site location. These data are retrieved from NHDPlusV2. Because NHD watershed areas apply to NHD reaches rather than our exact study reaches, we multiply each NHD watershed area by the distance of each site along its NHD reach (as a proportion). The subdatasets generated in this section are saved to disk, and subsequent runs will read them from disk rather than regenerating them. Functions `calc_reach_prop`, `nhdplusv2_bulk`, and `nhdplusv2_from_comid` are defined in `plot_helpers.R`.
+
+**NOTE: we ended up using watershed areas provided by USGS for most sites (see PART-I),
+so this section became obsolete. It's still here in case somebody wants it for future
+investigations.**
+
 
 ```{r addtl site data, include = FALSE, eval = FALSE}
 site_data_2 = readRDS('output_data/lotic_site_info_filtered.rds') %>%
@@ -308,9 +309,9 @@ plot(log_gpp_fnet[fnet_high_cov_bool],
      xlab='', ylab='', bg=alpha(fnetcolor, alpha=0.5),
      cex=1.5, cex.lab=axis_cex, cex.axis=axis_cex, ylim=-log(c(5000, 5)),
      pch=21, yaxt='n', xaxt='n', xlim=log(c(20, 5000)), lwd=2)
-mtext(expression(paste("Cumulative GPP (gC"~"m"^"-2"*" y"^"-1"*')')),
+mtext(expression(paste("Annual GPP (g C"~"m"^"-2"*" y"^"-1"*')')),
       1, line=5, cex=axis_cex)
-mtext(expression(paste("Cumulative ER (gC"~"m"^"-2"*" y"^"-1"*')')),
+mtext(expression(paste("Annual ER (g C"~"m"^"-2"*" y"^"-1"*')')),
       2, line=3.5, cex=axis_cex)
 # points(log_gpp_sp, log_er_sp, lwd=2,
 #        col=alpha(spcolor, alpha=0.5), cex=1.5, pch=21, bg=alpha(spcolor, alpha=0.5))
@@ -522,7 +523,7 @@ lips_plot = function(quant_filt=NULL, outfile, use_fnet=FALSE, ylims=NULL,
     polygon(x=c(smry$DOY, rev(smry$DOY)),
             y=c(smry$GPP_C_filled_quant25, rev(smry$GPP_C_filled_quant75)),
             border=NA, col=alpha('forestgreen', alpha=0.6))
-    axislocs = if(max(ylims) >= 10) seq(0, 10, 2) else c(0, 2.5, 5)
+    axislocs = if(max(ylims) >= 10) seq(0, 10, 2) else c(0, 2, 4)
     axis(2, las=0, line=0, xpd=NA, tck=-.02, labels=FALSE,
          at=axislocs, cex.axis=axis_cex_, tcl=-0.3)
     # at=round(seq(0, gpplim[2], length.out=5), 1))
@@ -533,7 +534,7 @@ lips_plot = function(quant_filt=NULL, outfile, use_fnet=FALSE, ylims=NULL,
     medsums = round(colSums(select(smry, contains('median'))), 1)
 
     if(! wee){
-        mtext(expression(paste(bold("gC") ~ bold("m") ^ bold("-2") ~
+        mtext(expression(paste(bold("g C") ~ bold("m") ^ bold("-2") *
                                    bold(" d") ^ bold("-1"))), side=2,
               line=line_, outer=TRUE, cex=axis_cex_)
     }
@@ -573,7 +574,7 @@ lips_plot = function(quant_filt=NULL, outfile, use_fnet=FALSE, ylims=NULL,
         axislocs = seq(0, -10, -2)
         axisextra = -11
     } else {
-        axislocs = c(0, -2.5, -5)
+        axislocs = c(0, -2, -4)
         axisextra = NULL
     }
     axis(2, las=0, line=0, xpd=NA, tck=-.02, labels=FALSE,
@@ -817,15 +818,14 @@ bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=TRUE,
 Combine site data compiled in parts II and III with coverage metrics, export for further analyses (See section IV).
 
 ```{r export statset, include = FALSE, eval = FALSE}
-site_data_A = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
+site_data = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
     as_tibble() %>%
-    rename(sitecode = Site_ID) %>%
-    filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
-site_data_B = readRDS(here('output_data' ,'spatial' ,'nhdplusv2_data.rds')) %>%
-    select(sitecode, lat, lon, stream_order = STREAMORDE, slope = SLOPE,
-           ws_area_km2 = TOTDASQKM_corr) %>%
-    filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
-site_data = full_join(site_data_A, site_data_B)
+    rename(sitecode = Site_ID)
+# site_data_B = readRDS(here('output_data' ,'spatial' ,'nhdplusv2_data.rds')) %>%
+#     select(sitecode, lat, lon, stream_order = STREAMORDE, slope = SLOPE,
+#            ws_area_km2 = TOTDASQKM_corr) %>%
+#     filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
+# site_data = full_join(site_data_A, site_data_B)
 
 stats_set = site_data %>%
     right_join(coverage_sp) %>%
