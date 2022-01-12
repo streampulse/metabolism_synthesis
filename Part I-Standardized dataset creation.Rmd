@@ -15,7 +15,7 @@ This workflow is part of a series that describes the preparation of data used in
 
 * **Part II. Filtering, gap-filling, and calculating metrics:** In Part II the standardized dataset of lotic and terrestrial metabolism data was filtered down to the subset of sites used in Bernhardt et al. (). After filtering, additional descriptive metrics were calculated to use in analysis.
 
-* **Part III. Analysis:** In Part III (ADD TEXT)
+* **Part III. Analysis:** Datasets from parts I and II are minimally subsetted and recast for plotting convenience. Figures 1-6 are generated. NHDPlusV2 supplementary data (slope, area, stream order) are acquired for each site. An analysis-ready dataset is compiled.
 
 <font size="5">In this document</font> 
 
