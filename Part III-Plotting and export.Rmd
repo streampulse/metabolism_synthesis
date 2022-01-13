@@ -13,13 +13,11 @@ editor_options:
 
 This workflow is part of a series that describes the preparation of data used in Bernhardt et al. (). The creation of this dataset consists of several sub workflows as described below.
 
-* **Part I: Standardized dataset creation:** Part I is the preparation of standardized datasets of stream metabolism from the [StreamPULSE data portal](https://data.streampulse.org/) and terrestrial ecosystem fluxes from the [FLUXNET2015 dataset](https://fluxnet.org/data/fluxnet2015-dataset/). 
+* **Part I: Standardized dataset creation:** Part I is the preparation of standardized datasets of stream metabolism from the [StreamPULSE data portal](https://data.streampulse.org/) and terrestrial ecosystem fluxes from the [FLUXNET2015 dataset](https://fluxnet.org/data/fluxnet2015-dataset/). Everything generated in Part I is included in `output_data`, so you may start with Part II.
 
 * **Part II. Filtering, gap-filling, and calculating metrics:** In Part II the standardized dataset of lotic and terrestrial metabolism data was filtered down to the subset of sites used in Bernhardt et al. (). After filtering, additional descriptive metrics were calculated to use in analysis.
 
-* **Part III. Plotting and export of stats dataset:** Datasets from parts I and II are minimally subsetted and recast for plotting convenience. Figures 1-6 are generated. NHDPlusV2 supplementary data (slope, area, stream order) are acquired for each site. An analysis-ready dataset is compiled.
-
-* **Part IV. Analysis:** (ADD TEXT)
+* **Part III. Plotting and export of stats dataset:** Datasets from part II are minimally subsetted and recast for plotting convenience. Figures 1-6 are generated. An analysis-ready dataset is compiled.
 
 # Setup
 
@@ -33,11 +31,9 @@ library(plotrix)
 library(nhdR)
 library(here)
 
-knitr::opts_knit$set(root.dir = '/home/mike/git/streampulse/metab_synthesis_2')
 ```
 
 ```{r setup2, include = FALSE}
-if(! file.exists(".here")){here::set_here('.')}
 
 dir.create(here('figures'),
            showWarnings = FALSE)
@@ -61,7 +57,7 @@ Columns Stream_PAR_sum, Disch_ar1, MOD_ann_NPP will be used in plots.
 
 ```{r load site data, include = FALSE, eval = FALSE}
 
-site_data_1 = readRDS('output_data/lotic_site_info_filtered.rds') %>%
+site_data_1 = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
     as_tibble() %>%
     select(sitecode = Site_ID,
            Stream_PAR_sum, Disch_ar1, Disch_skew, MOD_ann_NPP, nyears, ndays, coverage)
@@ -165,7 +161,7 @@ For some plots, we use different markers to indicate sites with high coverage fo
 coverage_sp = site_data_1 %>%
     select(sitecode, ndays, nyears, coverage)
 
-coverage_fnet = readRDS('output_data/fluxnet_site_info_filtered.rds') %>%
+coverage_fnet = readRDS(here('output_data', 'fluxnet_site_info_filtered.rds')) %>%
     as_tibble() %>%
     select(sitecode = Site_ID,
            nyears, ndays, coverage) %>%
@@ -192,7 +188,7 @@ investigations.**
 
 
 ```{r addtl site data, include = FALSE, eval = FALSE}
-site_data_2 = readRDS('output_data/lotic_site_info_filtered.rds') %>%
+site_data_2 = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
     as_tibble() %>%
     select(sitecode = Site_ID,
            lat = Lat,
@@ -200,10 +196,11 @@ site_data_2 = readRDS('output_data/lotic_site_info_filtered.rds') %>%
            epsg_crs, COMID, VPU)
 
 #get reach proportional distance for as many sites as possible
-got_reach_proportions <- file.exists(here('output_data', 'spatial/reach_proportion_reference.rds'))
+got_reach_proportions <- file.exists(here('output_data', 'spatial', 'reach_proportion_reference.rds'))
 
 if(got_reach_proportions){
-    site_data_2$reach_proportion = readRDS(here('output_data', 'spatial/reach_proportion_reference.rds'))
+    site_data_2$reach_proportion = readRDS(here('output_data', 'spatial',
+                                                'reach_proportion_reference.rds'))
 } else {
     site_data_2$reach_proportion = NA
     remake_reach_proportion_column = FALSE
@@ -239,7 +236,8 @@ if(got_reach_proportions){
         site_data_2$reach_proportion[i] = rp
     }
 
-    saveRDS(site_data_2$reach_proportion, here('output_data', 'spatial/reach_proportion_reference.rds'))
+    saveRDS(site_data_2$reach_proportion, here('output_data', 'spatial',
+                                               'reach_proportion_reference.rds'))
 }
 
 #retrieve NHDPlusV2 data (will be skipped if output_data/spatial/nhdplusv2_data.rds exists)
@@ -278,7 +276,7 @@ if(! file.exists(here('output_data', 'spatial' ,'nhdplusv2_data.rds'))){
     site_data_2$areal_corr_factor = site_data_2$TOTDASQKM_corr / site_data_2$TOTDASQKM
 
     #save progress
-    saveRDS(site_data_2, here('output_data' , 'spatial/nhdplusv2_data.rds'))
+    saveRDS(site_data_2, here('output_data', 'spatial/nhdplusv2_data.rds'))
 }
 ```
 
@@ -1120,6 +1118,7 @@ dev.off()
 library(sf)
 library(tmap)
 library(tmaptools)
+library(OpenStreetMap) #requires rJava package (which requires local JRE, JDK installation)
 
 sites_fnet = readRDS(here('output_data', 'fluxnet_site_info_filtered.rds')) %>%
     as_tibble() %>%
