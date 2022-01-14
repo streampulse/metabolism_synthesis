@@ -1,10 +1,12 @@
 ---
 title: "Part III: Plotting, supplementation, and export of stats dataset"
 author: "Mike Vlah"
-date: "7/5/2021"
+date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 editor_options: 
   chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "documentation") })
 ---
 
 # Description
