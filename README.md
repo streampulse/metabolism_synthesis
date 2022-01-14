@@ -1,13 +1,13 @@
 <font size="6">Summary of files in this repository </font> 
 
-This repository contains data and code used in Bernhardt et al. (in prep). The preparation of this dataset consisted of a three part workflow:
+This repository contains data and code used in Bernhardt et al. (2022). The preparation of this dataset consisted of a three part workflow:
 
 * **Part I: Standardized dataset creation:** Part I is the preparation of standardized datasets of stream metabolism from the [StreamPULSE data portal](https://data.streampulse.org/) and terrestrial ecosystem fluxes from the [FLUXNET2015 dataset](https://fluxnet.org/data/fluxnet2015-dataset/). 
-* **Part II. Filtering, gap-filling, and calculating metrics:** In Part II the standardized dataset of lotic and terrestrial metabolism data was filtered down to the subset of sites used in Bernhardt et al. (). After filtering, additional descriptive metrics were calculated to use in analysis.
-* **Part III. Analysis:** In Part III (ADD TEXT)
+* **Part II. Filtering, gap-filling, and calculating metrics:** In Part II the standardized dataset of lotic and terrestrial metabolism data was filtered down to the subset of sites used in Bernhardt et al. (2022). After filtering, additional descriptive metrics were calculated to use in analysis.
+* **Part III. Analysis:** In Part III Datasets from part II are minimally subsetted and recast for plotting convenience. Figures 1-6 are generated. An analysis-ready dataset is compiled.
 
 <font size="4">The repository contains: </font> 
--  A documentation of each parts of the workflow
+-  A documentation of each parts of the workflow, located in the documentation folder of this repository. The original R markdown files are also included in the root directory of the repository.
 - An associated package called **BernhardtMetabolism**, which contains data and code used to produce Part II of the workflow
 - Final data outputs
 
@@ -70,11 +70,11 @@ Format: A list of data frames, where each element of the list is a data frame of
 * **<span style="color:#009688">"Stream_PAR_sum":</span>** Daily sum of PAR estimated at the stream surface (mol m^-2^ d^-1^)
 * **<span style="color:#009688">"LAI_proc":</span>** MODIS LAI data that has been processed and gap-filled (m^2^ m^-2^)
 
-### 2.2 Standardized and filtered data used in Bernhardt et al. (in prep) 
+### 2.2 Standardized and filtered data used in Bernhardt et al. (2022) 
 
 #### 2.2.1 Standardized, filtered, gap-filled lotic metabolism
 
-This is the dataset of stream metabolism used in Bernhardt et al. (in prep). This data has been filtered based on several measures of data quality and availability and gaps were gap-filled. Finally, a suite of site metrics were calculated for use in analysis.
+This is the dataset of stream metabolism used in Bernhardt et al. (2022). This data has been filtered based on several measures of data quality and availability and gaps were gap-filled. Finally, a suite of site metrics were calculated for use in analysis.
 
 <font size="3"><i><span style="color:#00cc99">lotic_site_info_filtered.rds</span></i></font>
 
@@ -186,7 +186,7 @@ Format: A list of data frames, where each element of the list is a data frame of
 
 #### 2.2.2 Standardized and filtered FLUXNET 
 
-This is the dataset of terrestrial ecosystem fluxes used in Bernhardt et al. (in prep). This data has been filtered based on data availability and several basic site metrics were calculated for use in analysis.
+This is the dataset of terrestrial ecosystem fluxes used in Bernhardt et al. (2022). This data has been filtered based on data availability and several basic site metrics were calculated for use in analysis.
 
 <font size="3"><i><span style="color:#00cc99">fluxnet_site_info_filtered.rds</span></i></font>
 
