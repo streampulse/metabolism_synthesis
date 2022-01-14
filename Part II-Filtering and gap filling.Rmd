@@ -604,7 +604,7 @@ The output contains the following the following columns:
 
 <font size="6">Exporting the final dataset</font>
 
-A final set of outputs were then exported to the output_data directory of this repository. All files were output as both a .rds and .csv to facilitate use both within R and other environments.
+A final set of outputs were then exported to the output_data directory of this repository. All files were output as both a .rds and .csv to facilitate use both within R and other environments. However, this repo only contains the .rds files and the .csv files can be found as part of the encapsulated data repository HERE.
 
 ### 1. Standardized, unfiltered, lotic metabolism
 
@@ -824,7 +824,7 @@ Format: A list of data frames, where each element of the list is a data frame of
 ```
  
 
-```{r Export csv datasets, include = FALSE}
+```{r Export csv datasets, include = FALSE, eval = FALSE}
 #===============================================================================
 #Export the data into the data folder of the repo as .csv files
 #===============================================================================
