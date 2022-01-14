@@ -1,19 +1,21 @@
 ---
 title: "Part II: Filtering, gap-filling, and calculating metrics"
 author: "Phil Savoy, Mike Vlah, Lauren Koenig"
-date: "11/4/2021"
+date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "documentation") })
 ---
 
 # Description
 
 <font size="5">Summary of major workflow components</font> 
 
-This workflow is part of a series that describes the preparation of data used in Bernhardt et al. (). The creation of this dataset consists of several sub workflows as described below.
+This workflow is part of a series that describes the preparation of data used in Bernhardt et al. (2022). The creation of this dataset consists of several sub workflows as described below.
 
-* **Part I: Standardized dataset creation:** Part I is the preparation of standardized datasets of stream metabolism from the [StreamPULSE data portal](https://data.streampulse.org/) and terrestrial ecosystem fluxes from the [FLUXNET2015 dataset](https://fluxnet.org/data/fluxnet2015-dataset/). Everything generated in Part I is included in `output_data`, so you may start with Part II.
+* **Part I: Standardized dataset creation:** Part I is the preparation of standardized datasets of stream metabolism from the [StreamPULSE data portal](https://data.streampulse.org/) and terrestrial ecosystem fluxes from the [FLUXNET2015 dataset](https://fluxnet.org/data/fluxnet2015-dataset/). Everything generated in Part I is included in `output_data` so that other users could use this larger dataset if they choose to work with a different subset of data than we used.
 
-* **Part II. Filtering, gap-filling, and calculating metrics:** In Part II the standardized dataset of lotic and terrestrial metabolism data was filtered down to the subset of sites used in Bernhardt et al. (). After filtering, additional descriptive metrics were calculated to use in analysis.
+* **Part II. Filtering, gap-filling, and calculating metrics:** In Part II the standardized dataset of lotic and terrestrial metabolism data was filtered down to the subset of sites used in Bernhardt et al. (2022). After filtering, additional descriptive metrics were calculated to use in analysis.
 
 * **Part III. Plotting and export of stats dataset:** Datasets from part II are minimally subsetted and recast for plotting convenience. Figures 1-6 are generated. An analysis-ready dataset is compiled.
 
@@ -602,13 +604,13 @@ The output contains the following the following columns:
 
 <font size="6">Exporting the final dataset</font>
 
-A final set of outputs were then exported to the output_data directory of this repository.
+A final set of outputs were then exported to the output_data directory of this repository. All files were output as both a .rds and .csv to facilitate use both within R and other environments.
 
 ### 1. Standardized, unfiltered, lotic metabolism
 
 This is the full, unfiltered, standardized dataset of stream metabolism that was compiled.
 
-<font size="3"><i><span style="color:#00cc99">lotic_site_info_full.rds</span></i></font>
+<font size="3"><i><span style="color:#00cc99">lotic_site_info_full(.rds/.csv)</span></i></font>
 
 Format: A single data frame with the following columns:
 
@@ -628,9 +630,9 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
 * **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
 
-<font size="3"><i><span style="color:#00cc99">lotic_standardized_full.rds</span></i></font>
+<font size="3"><i><span style="color:#00cc99">lotic_standardized_full(.rds/.csv)</span></i></font>
 
-Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site. The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
+Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site (note the .csv version is one single data frame that contains all data for all sites). The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
 
 * **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
 * **<span style="color:#009688">"Date":</span>** Date in YYYY-MM-DD format
@@ -650,13 +652,13 @@ Format: A list of data frames, where each element of the list is a data frame of
 * **<span style="color:#009688">"Stream_PAR_sum":</span>** Daily sum of PAR estimated at the stream surface (mol m^-2^ d^-1^)
 * **<span style="color:#009688">"LAI_proc":</span>** MODIS LAI data that has been processed and gap-filled (m^2^ m^-2^)
 
-### 2. Standardized and filtered data used in Bernhardt et al. (in prep) 
+### 2. Standardized and filtered data used in Bernhardt et al. (2022) 
 
 #### 2.1 Standardized, filtered, gap-filled lotic metabolism
 
-This is the dataset of stream metabolism used in Bernhardt et al. (in prep). This data has been filtered based on several measures of data quality and availability and gaps were gap-filled. Finally, a suite of site metrics were calculated for use in analysis.
+This is the dataset of stream metabolism used in Bernhardt et al. (2022). This data has been filtered based on several measures of data quality and availability and gaps were gap-filled. Finally, a suite of site metrics were calculated for use in analysis.
 
-<font size="3"><i><span style="color:#00cc99">lotic_site_info_filtered.rds</span></i></font>
+<font size="3"><i><span style="color:#00cc99">lotic_site_info_filtered(.rds/.csv)</span></i></font>
 
 Format: A single data frame with the following columns:
 
@@ -729,9 +731,9 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"coverage":</span>** Total coverage of daily GPP (non gap-filled) for the site, calculated as ndays / all possible days for all site-years included in the filtered dataset. Ranges from 0-1.
 
 
-<font size="3"><i><span style="color:#00cc99">lotic_gap_filled.rds</span></i></font>
+<font size="3"><i><span style="color:#00cc99">lotic_gap_filled(.rds/.csv)</span></i></font>
 
-Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site. The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
+Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site (note the .csv version is one single data frame that contains all data for all sites). The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
 
 * **<span style="color:#009688">"Site_ID":</span>** Unique site identifier
 * **<span style="color:#009688">"Date":</span>** Date in YYYY-MM-DD format
@@ -767,9 +769,9 @@ Format: A list of data frames, where each element of the list is a data frame of
 
 #### 2.2 Standardized and filtered FLUXNET 
 
-This is the dataset of terrestrial ecosystem fluxes used in Bernhardt et al. (in prep). This data has been filtered based on data availability and several basic site metrics were calculated for use in analysis.
+This is the dataset of terrestrial ecosystem fluxes used in Bernhardt et al. (2022). This data has been filtered based on data availability and several basic site metrics were calculated for use in analysis.
 
-<font size="3"><i><span style="color:#00cc99">fluxnet_site_info_filtered.rds</span></i></font>
+<font size="3"><i><span style="color:#00cc99">fluxnet_site_info_filtered(.rds/.csv)</span></i></font>
 
 Format: A single data frame with the following columns:
 
@@ -785,9 +787,9 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"nyears":</span>** Total number of years for the site in the filtered dataset
 * **<span style="color:#009688">"coverage":</span>** Total coverage of daily GPP (non gap-filled) for the site, calculated as ndays / all possible days for all site-years included in the filtered dataset. Ranges from 0-1.
 
-<font size="3"><i><span style="color:#00cc99">fluxnet_filtered_metabolism.rds</span></i></font>
+<font size="3"><i><span style="color:#00cc99">fluxnet_filtered_metabolism(.rds/.csv)</span></i></font>
 
-Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site. The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
+Format: A list of data frames, where each element of the list is a data frame of timeseries for a single site (note the .csv version is one single data frame that contains all data for all sites). The names of each list element correspond to the unique site identifier (Site_ID) for a site. Each data frame contains the following columns:
 
 * **<span style="color:#009688">"Date":</span>** Date in YYYY-MM-DD format
 * **<span style="color:#009688">"U_ID":</span>** Unique date identifier (format as year + DOY)
@@ -804,7 +806,10 @@ Format: A list of data frames, where each element of the list is a data frame of
 * **<span style="color:#009688">"SW":</span>** Average incoming shortwave radiation from daily data (W m^-2)
 
 
-```{r Export datasets, include = FALSE}
+```{r Export r datasets, include = FALSE}
+#===============================================================================
+#Export the data into the data folder of the repo as .rds files
+#===============================================================================
 #Standardized, unfiltered, lotic metabolism
   saveRDS(lotic_site_info_full, "./output_data/lotic_site_info_full.rds")
   saveRDS(lotic_standardized_full, "./output_data/lotic_standardized_full.rds")
@@ -818,3 +823,58 @@ Format: A list of data frames, where each element of the list is a data frame of
   saveRDS(fluxnet_filtered_metabolism, "./output_data/fluxnet_filtered_metabolism.rds")
 ```
  
+
+```{r Export csv datasets, include = FALSE}
+#===============================================================================
+#Export the data into the data folder of the repo as .csv files
+#===============================================================================
+#-------------------------------------------------  
+#Standardized, unfiltered, lotic metabolism
+#-------------------------------------------------  
+  #Site information
+    write.csv(lotic_site_info_full, "./output_data/lotic_site_info_full.csv", row.names = F, quote = F)
+
+  #Compile the dataset into a single data frame and export
+    lotic_standardized_full_compiled <- do.call(rbind, lotic_standardized_full)
+
+    write.csv(lotic_standardized_full_compiled, "./output_data/lotic_standardized_full.csv", row.names = F, quote = F)
+ 
+#-------------------------------------------------  
+#Standardized, filtered, gap-filled lotic metabolism    
+#-------------------------------------------------  
+  #Site information
+    write.csv(lotic_site_info_filtered, "./output_data/lotic_site_info_filtered.csv", row.names = F, quote = F)
+    
+  #Compile the dataset into a single data frame and export
+    lotic_gap_filled_compiled <- do.call(rbind, lotic_gap_filled)    
+    
+    write.csv(lotic_gap_filled_compiled, "./output_data/lotic_gap_filled.csv", row.names = F, quote = F)
+
+#------------------------------------------------- 
+#Standardized and filtered FLUXNET
+#------------------------------------------------- 
+  #Site information  
+    write.csv(fluxnet_site_info_filtered, "./output_data/fluxnet_site_info_filtered.csv", row.names = F, quote = F)
+    
+  #Define a function to add site ids
+    add_id <- function(site){
+      #Get site of interest
+        SOI <- fluxnet_filtered_metabolism[[site]]
+        
+      #Add Site_ID
+        SOI$Site_ID <- site
+        
+      #Rearrange final columns
+        final <- SOI[, c("Site_ID", names(SOI)[!(names(SOI) %in% "Site_ID")])]
+        
+      return(final)
+    } #End add_id function
+    
+  #Compile the dataset into a single data frame and export
+    fluxnet_filtered_metabolism_compiled <- do.call(
+      rbind,
+      lapply(names(fluxnet_filtered_metabolism), FUN = add_id)  
+    ) 
+    
+    write.csv(fluxnet_filtered_metabolism_compiled, "./output_data/fluxnet_filtered_metabolism.csv", row.names = F, quote = F)
+```
