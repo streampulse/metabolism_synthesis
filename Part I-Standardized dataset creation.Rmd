@@ -381,7 +381,7 @@ full_final_table()
 * **<span style="color:#009688">"TH":</span>** Tree height (m). Estimates were derived from Tree heights were derived using 30m resolution global canopy height estimates from [Potapov et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0034425720305381?via%3Dihub)
 * **<span style="color:#009688">"Width":</span>** Channel width (m)
 * **<span style="color:#009688">"Width_src":</span>** Source of channel width estimates. Values include: (NWIS field measurements, Regional geomorphic scaling coeff, StreamPULSE estimates)
-* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km ^-2^)
+* **<span style="color:#009688">"WS_area_km2":</span>** Watershed area (km^2^)
 * **<span style="color:#009688">"WS_area_src":</span>** Source of watershed area estimates. Values include: (Appling2018_USGS2013, Appling2018_StreamStats, nwis_site_description, StreamStats, localuser_HBFLTER, localuser_UNHWQAL)
 
 
@@ -418,7 +418,7 @@ The final dataset contains the following columns:
 * **<span style="color:#009688">"ER":</span>** FLUXNET ER estimates (g C m^-2^ d^-1^) "RECO_NT_VUT_REF, positive values replaced with NA
 * **<span style="color:#009688">"Net":</span>** FLUXNET NEE (changed to NEP by * -1) "NEE_VUT_REF"
 * **<span style="color:#009688">"Temp":</span>** Average air temperature from half-hourly data (degrees C)
-* **<span style="color:#009688">"Precip":</span>** Average precipition from half-hourly data (mm)
+* **<span style="color:#009688">"Precip":</span>** Average precipitation from half-hourly data (mm)
 * **<span style="color:#009688">"VPD":</span>** Average vapor pressure deficit from half-hourly data (hPa)
 * **<span style="color:#009688">"SW":</span>** Average incoming shortwave radiation from half-hourly data (W m^-2)
 
@@ -436,12 +436,12 @@ The final dataset contains the following columns:
 
 * **<span style="color:#009688">"Year":</span>** Year
 * **<span style="color:#009688">"GPP":</span>** FLUXNET annual GPP (sum from daily estimates) (g C m^-2^ y^-1^) "GPP_NT_VUT_REF". Gross Primary Production, from Nighttime partitioning method, reference version selected from GPP versions using a model efficiency approach.
-* **<span style="color:#009688">"ER":</span>** FLUXNET annual ER (sum from daily estimates) (g C m^-2^ d^-y^) "RECO_NT_VUT_REF". Ecosystem Respiration, from Nighttime partitioning method, reference selected from RECO versions using a model efficiency approach.
+* **<span style="color:#009688">"ER":</span>** FLUXNET annual ER (sum from daily estimates) (g C m^-2^ y^-1^) "RECO_NT_VUT_REF". Ecosystem Respiration, from Nighttime partitioning method, reference selected from RECO versions using a model efficiency approach.
 * **<span style="color:#009688">"Net":</span>** FLUXNET NEE (changed to NEP by * -1) "NEE_VUT_REF". I derived this from data of this description:Net Ecosystem Exchange, using Variable Ustar Threshold (VUT) for each year, reference selected on the basis of the model efficiency.
 * **<span style="color:#009688">"Temp":</span>** Average air temperature from daily data (degrees C)
 * **<span style="color:#009688">"Precip":</span>** Average precipition from daily data (mm)
 * **<span style="color:#009688">"VPD":</span>** Average vapor pressure deficit from daily data (hPa)
-* **<span style="color:#009688">"SW":</span>** Average incoming shortwave radiation from daily data (W m^-2)
+* **<span style="color:#009688">"SW":</span>** Average incoming shortwave radiation from daily data (W m^-2^)
 
 ### 3. Basic FLUXNET site information (<i><span style="color:#BB1AA5">fluxnet_basic_info</span></i>)
 
