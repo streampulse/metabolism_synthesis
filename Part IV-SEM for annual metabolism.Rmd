@@ -1,0 +1,370 @@
+---
+title: "Part IV: SEM for annual metabolism dataset"
+author: "Lauren Koenig, Robert Hall"
+date: "Last updated on 9 September 2021"
+output: html_document
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "documentation") })
+---
+
+# Description
+
+Code used for structural equation model (SEM) analysis on annual metabolism dataset. We used an observed variables model to estimates the effect of light (PAR reaching the stream surface) and hydrologic variability (skewness of daily discharge) on annual river GPP.  
+
+<br>  
+
+#### 1. Prepare dataset for SEM
+
+```{r Setup environment, message = FALSE}
+#Before proceeding, load the necessary packages 
+  library(lavaan)
+  library(semPlot)
+  library(dplyr)
+  library(ggplot2)
+  library(ggrepel)
+  library(here)
+```
+
+```{r Load filtered StreamPULSE data}
+
+#==============================================#
+#               Load derived data              #
+#==============================================#
+# Load filtered data set:
+data <- readRDS(here('output_data', 'lotic_site_info_filtered.rds'))
+
+```
+
+
+```{r Prep data for analysis}
+
+#==============================================#
+#                Prep variables                #
+#==============================================#
+
+# Define Boltzman constant to transform water temperatures:
+k <- 8.62e-5 # units for Boltzmann constatnt are eV/K since the Arrhenius equation has units for activation energy in eV
+
+# Transform a subset of variables:
+data_prep <- data %>% mutate(
+              # transform GPP (log):  
+              log_ann_gpp = log(ann_GPP_C),
+              # transform ER (log):
+              log_ann_er = log(-ann_ER_C),
+              # transform disch_ar1 (logit):
+              logit_Disch_ar1 = log(Disch_ar1/(1-Disch_ar1)),
+              # transform modis NPP (log):
+              log_MOD_ann_npp = log(MOD_ann_NPP),
+              # transform modis NPP (rescale):
+              MOD_ann_NPP_scale = MOD_ann_NPP/1000,
+              # transform watershed area (log):
+              log_area = log(WS_area_km2),
+              # transform width (log):
+              logwidth = log(Width),
+              # calculate NEP:
+              nep = ann_GPP_C + ann_ER_C,
+              # calculate mean water temp. in K:
+              Wtemp_mean_K = Wtemp_mean + 273.15,
+              # transform mean water temp. using Arrhenius eqn:
+              Wtemp_mean_scale = (1/(k*Wtemp_mean_K)))
+```
+
+
+```{r Inspect data for analysis,eval=FALSE} 
+
+# Visualize a subset of variables:
+  # GPP:
+  hist(data_prep[,c("ann_GPP_C","log_ann_gpp","ann_ER_C","log_ann_er")])
+  hist(data_prep[,"nep"])
+
+  # Discharge metrics:
+  hist(data_prep[,c("Disch_ar1","logit_Disch_ar1","Disch_cv","Disch_skew")])
+
+  # Modis NPP:
+  hist(data_prep[,c("MOD_ann_NPP","log_MOD_ann_npp","MOD_ann_NPP_scale")])
+  
+  # Light, area, and width:
+  hist(data_prep[,c("Stream_PAR_sum","WS_area_km2","log_area","Width","logwidth")])
+
+# Visualize pairwise relationships:
+plot(data_prep[,c("logit_Disch_ar1","log_ann_gpp","log_ann_er","MOD_ann_NPP","Stream_PAR_sum","log_area","logwidth","Wtemp_mean")])
+
+# Visualization NEP + relationship between GPP and ER:
+quantile(data_prep$nep, c(0.2,0.5,0.8))
+plot(data_prep$log_ann_gpp, data_prep$log_ann_er,xlab="ann_GPP_C",ylab="ann_ER_C")
+gpper_fit <- quantreg::rq(log_ann_er ~ log_ann_gpp, data = data_prep)
+summary(gpper_fit)
+
+```
+
+
+```{r Create SEM input data}
+
+# Make a small data frame for the SEM fit:
+data_sem<-data.frame(
+          gpp = data_prep$log_ann_gpp,
+          er = data_prep$log_ann_er,
+          PAR = data_prep$Stream_PAR_sum,
+          mod_npp = data_prep$MOD_ann_NPP_scale,
+          logwidth = data_prep$logwidth,
+          qcv = data_prep$Disch_cv,
+          qamp = data_prep$Disch_amp,
+          ar1 = data_prep$Disch_ar1,
+          skew = data_prep$Disch_skew,
+          area = data_prep$log_area,
+          temp = data_prep$Wtemp_mean,
+          temp_scale = data_prep$Wtemp_mean_scale,
+          lat = data_prep$Lat)
+
+```
+
+
+<br>  
+
+#### 2. Observed variables SEM for GPP only  
+  
+We first fit an observed variables model to annual GPP. The observed variables are light (modeled light) and some aspect of discharge variability. We opted to use skewness of daily Q to represent discharge variability because models using either Q-AR1 or Q-CV resulted in model covariance structures that were a poor fit to the data (Chi-square P-Value < 0.05). Upstream watershed area and riparian productivity (MODIS NPP) are also in the model and influence both light and Q_skew. Note here that we would not hypothesize a causal relationship between riparian productivity (MODIS NPP) and hydrologic variability. However, the model residuals indicate that mod_npp covaries with skew:  
+
+```{r Fit observed variables model for GPP 1}
+
+#=====================================================#
+#     Fit GPP only SEM (observed variables model)     #
+#=====================================================#
+
+## 1. Model with Q-skew (no path between mod_npp and skew):
+gpp_model_skew <- "
+        gpp ~ PAR + skew   
+        PAR ~ area + mod_npp
+        skew ~ area" # end model
+
+sem.fit.skew <- sem(gpp_model_skew, data=data_sem)
+summary(sem.fit.skew, standardize=TRUE, rsq=TRUE)
+
+resid(sem.fit.skew, "cor")
+
+```
+
+mod_npp likely covaries with skew because the model wants to fit those sites in the data set that have high riparian productivity but low discharge variability:  
+
+
+```{r Plot observed variables model for GPP 1, echo=FALSE,warning=FALSE,fig.width=5,fig.height=3.5}
+
+ggplot() + 
+    geom_point(data = data_prep,aes(x=MOD_ann_NPP, y = Disch_skew)) +
+    geom_point(data=data_prep[data_prep$MOD_ann_NPP>950,],aes(x=MOD_ann_NPP,y=Disch_skew),color="blue") +
+    geom_label_repel(data=data_prep[data_prep$MOD_ann_NPP>950,],aes(x=MOD_ann_NPP,y=Disch_skew,label=Name),size=2)+
+    labs(x = "MODIS annual NPP", y = "Discharge skewness") +
+    theme_bw()
+
+```
+
+<br>  
+
+Now fit the model after adding in mod_npp --> Q_skew. Specifying that skew is mediated by mod_npp results in a model covariance structure that better matches the data ($\chi^2 \sim 3.9$):   
+
+```{r Fit observed variables model for GPP 2,echo=TRUE,warning=FALSE}
+
+## 2. Model with Q-skew (path between modis_npp and skew):
+gpp_model_skew2 <- "
+        gpp ~ PAR + skew   
+        PAR ~ area + mod_npp
+        skew ~ area + mod_npp" # end model
+
+sem.fit.skew2 <- sem(gpp_model_skew2, data=data_sem)
+summary(sem.fit.skew2, standardize=TRUE, rsq=TRUE)
+
+```
+
+
+```{r Plot observed variables model for GPP 2,echo=FALSE,warning=FALSE,fig.height = 3.9,fig.width = 5}
+
+#==============================================#
+#        Visualize GPP only SEM w/ Q-skew      #
+#==============================================#
+
+labels<-c("Annual\nriver GPP","Mean river\nlight","Flow\nvariability",
+          "Watershed\narea","Terrestrial\nNPP")
+ly <- matrix(c(3, 1, 2, 0, 2, 2, 0, 0, 0, 2), ncol = 2, byrow = TRUE)
+
+semPaths(object=sem.fit.skew2, what="std", whatLabels="std",nCharNodes=0, sizeMan=13,
+         style="mx",curveAdjacent = FALSE,
+         residuals = FALSE,fixedStyle=c(1),freeStyle=1,
+         posCol = "#1b9e77",
+         negCol = "#d95f02",
+         edge.label.position=c(0.5,0.5,0.5,0.2,0.2,0.5,0.5,0.5),
+         edge.label.cex=1.3, curvePivot = TRUE, fade=FALSE,asize=3,#esize=2.5,
+         nodeLabels=labels,layout = ly)
+
+```
+
+The observed variables model for GPP generally matches our hypotheses. Watershed area increases light and light increases GPP. Area lowers Q-skew, suggesting that larger rivers have less variable flow, and lower skew increases GPP. Terrestrial productivity (MODIS NPP) lowers light. Terrestrial productivity also lowers Q-skew, perhaps indicating that wet areas have less flow variability, but this path is likely driven by the sites represented in our data set (see scatter plot above). Area and MODIS NPP covary negatively, possibly because the vegetation around the stream reach does not reflect that in the upstream watershed as rivers get bigger. Alternatively, our larger sites might be represented by a lot of western rivers with low riparian productivity.    
+  
+$R^2$ for GPP is about 35%.  
+
+
+<br>  
+
+#### 3. Observed variables SEM for GPP + ER  
+
+We want to add ER into our SEM model to test for the effect of flow variability (Q-skew) and organic matter inputs (GPP and terrestrial NPP) on annual ER. We hypothesize that there is a positive effect of organic matter supply (annual gpp and mod_npp) on ER and a negative effect of flow variability on ER. The resulting SEM model is a good fit (model covariance structure matches the data) and supports these predictions:    
+
+```{r Fit observed variables model for GPP+ER,echo=TRUE,warning=FALSE}
+
+#===============================================#
+#   Fit GPP+ER SEM (observed variables model)   #
+#===============================================#
+
+# GPP + ER Model with Q-skew:
+gpper_model_skew <- "
+        gpp ~ PAR + skew  
+        PAR ~ area + mod_npp 
+        skew ~ area + mod_npp
+        er ~ gpp + skew + mod_npp " # end model
+
+sem.fit.skew3 <- sem(gpper_model_skew, data=data_sem)
+summary(sem.fit.skew3, standardize=TRUE, rsq=TRUE)
+
+# Print std. path coefficients and p-values:
+lavaan::standardizedSolution(sem.fit.skew3) %>% 
+dplyr::filter(!is.na(pvalue)) %>% 
+  arrange(desc(pvalue)) %>% 
+  mutate_if("is.numeric","round",3) %>% 
+  select(-ci.lower,-ci.upper,-z)
+
+```
+
+
+
+```{r Plot observed variables model for GPP+ER,echo=FALSE,warning=TRUE,fig.height=5,fig.width=5.3}
+
+#==============================================#
+#        Visualize GPP+ER SEM w/ Q-skew        #
+#==============================================#
+
+# Hack a way to display non-significant paths as dashed lines using semPlot by modifying var "fixed"
+# IMPORTANT: CAN NO LONGER INTERPRET VARIABLE "FIXED" IN obj@Pars AFTER IMPLEMENTING CHANGE BELOW:
+obj <- semPlot::semPlotModel(sem.fit.skew3)
+obj@Pars <- obj@Pars %>% 
+            mutate(fixed_hack = ifelse(lhs == "mod_npp" & rhs == "er",TRUE,FALSE)) %>%
+            select(label,lhs,edge,rhs,est,std,group,fixed_hack,par) %>%
+            rename("fixed" = "fixed_hack")
+
+# Set up plot layout:
+labels_with_er<-c("Annual\nriver GPP","Mean river\nlight","Flow\nvariability"," Annual  \nriver ER ",
+                  "Watershed\narea","Terrestrial\nNPP")
+ly_with_er <- matrix(c(0.5, 0, 0.5, 1, 1.5, 1, 1.5, 0, -0.1, 2, 2.1, 2), ncol = 2, byrow = TRUE)
+
+semPaths(object=obj, what="std", whatLabels="std",nCharNodes=0, sizeMan=13,
+         style="mx",curveAdjacent = FALSE,
+         residuals = FALSE,fixedStyle=c(2),freeStyle=c(1),
+         posCol = "#1b9e77",
+         negCol = "#d95f02",
+         edge.label.position=c(0.5,0.5,0.5,0.2,0.2,0.5,0.5,0.5,0.4,0.5,0.5),
+         edge.label.cex=1.25, curvePivot = TRUE, fade=FALSE,asize=4,#esize=7,
+         nodeLabels=labels_with_er,layout = ly_with_er)
+
+```
+
+```{r Plot observed variables model for GPP+ER 2,echo=FALSE,warning=TRUE,fig.height=5,fig.width=5.3,eval=FALSE}
+
+# Adjust figure formatting (horizontal)
+ly_with_er_horiz <- matrix(c(2, 1, 1, 1, 1, 0, 2, 0, 0, 1, 0, 0), ncol = 2, byrow = TRUE)
+
+p <- semPaths(object=obj, what="std", whatLabels="std",sizeMan=20,sizeMan2=13,
+         nCharEdges = 0,nCharNodes=0, 
+         style="mx",curveAdjacent = FALSE,
+         residuals = FALSE,fixedStyle=c(2),freeStyle=c(1),
+         posCol = "#1b9e77",
+         negCol = "#d95f02",
+         curvePivot=FALSE,edge.label.margin=c(.02,0.05,0.02,0.05,0.05,0.02,0.05,0.02,0.02,0.05,0.02),
+         edge.label.position=c(0.5,0.5,0.5,0.2,0.2,0.5,0.5,0.5,0.5,0.5,0.5),
+         edge.label.cex=1.35, fade=FALSE,asize=c(6,5,7,5,6,4,7,4,4,5,4),esize=15,
+         nodeLabels=labels_with_er,layout = ly_with_er_horiz,mar=c(8.5,4,6,4))
+
+p$graphAttributes$Edges$curve
+
+# By replacing this vector, we add curve to our plot
+p$graphAttributes$Edges$curve <- c(0,0,0,0,0,0,0,0,-2,-2,0)
+
+# Then we can plot manipulated p with plot()-function and see the curvature
+plot(p)
+
+```
+
+Adding ER kept the GPP model intact and the model fit to the data is pretty good ($\chi^2 \sim 8.7$). GPP increases ER and Q-skew lowers ER. The path relating mod_npp to ER was not significant and so is shown with a dashed line. There may be a few reasons why mod_npp is not related to ER:  
+  
+- local vegetation doesn't control ER in these rivers (but may still influence river NEP)  
+- GPP does such a good job of explaining ER in this data set that we cannot detect the effect of terrestrial OM inputs  
+- mod_npp is a metric of proximal riparian productivity in our data set and so may not be a good proxy for integrated terrestrial productivity in the upstream watershed.  
+
+ $R^2$ for GPP and ER is about 35% and 47%, respectively.  
+
+<br>  
+
+#### 4. Observed variables SEM for GPP + ER (Add temperature)  
+  
+Now we want to test for the effect of mean temperature on annual rates of river metabolism.  We scaled mean daily water temperatures according to the Arrhenius equation, and made temperature an exogenous variable that we hypothesize has a positive effect on at least ER.  
+
+```{r Fit observed variables model for GPP+ER with temperature,echo=TRUE,warning=FALSE}
+
+# ER is controlled by scaled temperature:  
+gpper_model_skew_temp <- "
+        gpp ~ PAR + skew 
+        PAR ~ area + mod_npp 
+        skew ~ area + mod_npp
+        er ~ gpp + skew + mod_npp + temp_scale" # end model
+
+sem.fit.skew4 <- sem(gpper_model_skew_temp, data=data_sem)
+summary(sem.fit.skew4, standardize=TRUE, rsq=TRUE)
+
+resid(sem.fit.skew4, "cor")
+
+
+```
+
+The model covariance structure is not a good match to the underlying data ($\chi^2 > 30$). The residual correlations above suggest that temperature covaries with GPP and Q-skewness. Because scaled temperature has switched signs, this correlation is essentially suggesting that warmer streams are more hydrologically variable and have lower GPP.   
+
+
+<br>  
+
+Add temperature to the GPP model and let temperature control Q-skew:  
+
+```{r,echo=TRUE,warning=FALSE}
+
+# GPP + ER are controlled by scaled temperature:  
+gpper_model_skew_temp2 <- "
+        gpp ~ PAR + skew + temp_scale
+        PAR ~ area + mod_npp 
+        skew ~ area + mod_npp + temp_scale
+        er ~ gpp + skew + mod_npp + temp_scale" # end model
+
+sem.fit.skew5 <- sem(gpper_model_skew_temp2, data=data_sem)
+summary(sem.fit.skew5, standardize=TRUE, rsq=TRUE)
+
+inspect(sem.fit.skew5, what="cor.all") #expected correlation
+lavCor(sem.fit.skew5)  ##measured correlations
+resid(sem.fit.skew5, "cor")
+
+```
+
+
+The model is generally consistent with the data ($\chi^2 \sim 10$) and adding temperature does help the prediction. Activation energy for ER is -0.29 and activation energy for GPP is 0.33. So the model suggests that there is a positive relationship between *scaled* mean temperature and GPP:  
+
+```{r,echo=FALSE,warning=TRUE}
+
+semPaths(sem.fit.skew5, what='std', nCharNodes=6, sizeMan=10,residuals=FALSE,
+         edge.label.cex=1.25, curvePivot = TRUE, fade=FALSE,layout="tree2",rotation=2)
+
+```
+
+The implied positive relationship between scaled temperature and GPP (~negative relationship between unscaled temp and GPP) is a red flag here, and suggests that the model may be overfitted. Adding temperature improves the fit, but the fact that GPP is going the "wrong" direction with temperature makes us think that some unobserved variable is confounding the estimate of temperature on GPP. Perhaps DOC (warm rivers in the southeast have low GPP)?  
+
+In any case, an assumption we make in fitting an SEM is that all relevant paths are represented in the causal model. Because temperature covaries with so many other things, that assumption is likely pretty shaky now and it's probably the case that we cannot get an unconfounded estimate of temperature on GPP (and/or ER) with this observational data set. From a theoretical perspective (and not just a statistical one), we may not even expect to see much of a reationship with temperature in the first place. Over the annual time scales we're interested in, ER is likely donor-controlled by supply of reduced carbon. and not temperature-controlled.  We see this point in the SEM.  GPP controls ER suggesting that a supply of OM from GPP drives most of the spatial variability in ER.  The same must be true for watershed loading of terrestrial OM, and in fact temperature could act in weird ways via its indirect control on what comes in from watersheds.  
+
+In summary, we tested the effect of temperature and ultimately opted to ignore it based on biological implausibility and lack of clear hypotheses on how temperature will control spatial variation in metatbolism at annual time scales. We therefore present the GPP + ER model without temperature (above).  
+
+
+<br>  
+
+
+
