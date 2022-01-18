@@ -2,7 +2,7 @@
 title: "Part II: Filtering, gap-filling, and calculating metrics"
 author: "Phil Savoy, Mike Vlah, Lauren Koenig"
 date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
-output: html_document
+output: github_document
 knit: (function(inputFile, encoding) {
   rmarkdown::render(inputFile, encoding = encoding, output_dir = "documentation") })
 ---
@@ -473,21 +473,21 @@ The output contains the following columns:
 * **<span style="color:#009688">"er_C_amp":</span>** Amplitude of daily ER
 * **<span style="color:#009688">"er_C_phase":</span>** Phase of daily ER (day of year)
 * **<span style="color:#009688">"er_C_ar1":</span>** Autoregressive lag-one correlation coefficient of daily ER
-* **<span style="color:#009688">"Wtemp_mean** Mean daily water temperature
+* **<span style="color:#009688">"Wtemp_mean** Mean daily water temperature (degreees C)
 * **<span style="color:#009688">"Wtemp_cv":</span>** CV of daily GPP
 * **<span style="color:#009688">"Wtemp_skew":</span>** Skewness of daily water temperature
 * **<span style="color:#009688">"Wtemp_kurt":</span>** Kurtosis of daily water temperature
 * **<span style="color:#009688">"Wtemp_amp":</span>** Amplitude of daily water temperature
 * **<span style="color:#009688">"Wtemp_phase":</span>** Phase of daily water temperature (day of year)
 * **<span style="color:#009688">"Wtemp_ar1":</span>** Autoregressive lag-one correlation coefficient of daily water temperature
-* **<span style="color:#009688">"Disch_mean":</span>** Mean daily discharge
+* **<span style="color:#009688">"Disch_mean":</span>** Mean daily discharge (m^3^ s^-1^)
 * **<span style="color:#009688">"Disch_cv":</span>** CV of daily discharge
 * **<span style="color:#009688">"Disch_skew":</span>** Skewness of daily discharge
 * **<span style="color:#009688">"Disch_kurt":</span>** Kurtosis of daily discharge
 * **<span style="color:#009688">"Disch_amp":</span>** Amplitude of daily discharge
 * **<span style="color:#009688">"Disch_phase":</span>** Phaste of daily discharge (day of year)
 * **<span style="color:#009688">"Disch_ar1":</span>** Autoregressive lag-one correlation coefficient of daily discharge
-* **<span style="color:#009688">"PAR_mean":</span>** Mean daily PAR
+* **<span style="color:#009688">"PAR_mean":</span>** Mean daily sum of incoming above canopy PAR (mol m^-2^ d^-1^)
 * **<span style="color:#009688">"PAR_cv":</span>** CV of daily PAR
 * **<span style="color:#009688">"PAR_skew":</span>** Skewness of daily PAR
 * **<span style="color:#009688">"PAR_kurt":</span>** Kurtosis of daily PAR
@@ -697,21 +697,21 @@ Format: A single data frame with the following columns:
 * **<span style="color:#009688">"er_C_amp":</span>** Amplitude of daily ER
 * **<span style="color:#009688">"er_C_phase":</span>** Phase of daily ER (day of year)
 * **<span style="color:#009688">"er_C_ar1":</span>** Autoregressive lag-one correlation coefficient of daily ER
-* **<span style="color:#009688">"Wtemp_mean** Mean daily water temperature
+* **<span style="color:#009688">"Wtemp_mean** Mean daily water temperature (degreees C)
 * **<span style="color:#009688">"Wtemp_cv":</span>** CV of daily GPP
 * **<span style="color:#009688">"Wtemp_skew":</span>** Skewness of daily water temperature
 * **<span style="color:#009688">"Wtemp_kurt":</span>** Kurtosis of daily water temperature
 * **<span style="color:#009688">"Wtemp_amp":</span>** Amplitude of daily water temperature
 * **<span style="color:#009688">"Wtemp_phase":</span>** Phase of daily water temperature (day of year)
 * **<span style="color:#009688">"Wtemp_ar1":</span>** Autoregressive lag-one correlation coefficient of daily water temperature
-* **<span style="color:#009688">"Disch_mean":</span>** Mean daily discharge
+* **<span style="color:#009688">"Disch_mean":</span>** Mean daily discharge (m^3^ s^-1^)
 * **<span style="color:#009688">"Disch_cv":</span>** CV of daily discharge
 * **<span style="color:#009688">"Disch_skew":</span>** Skewness of daily discharge
 * **<span style="color:#009688">"Disch_kurt":</span>** Kurtosis of daily discharge
 * **<span style="color:#009688">"Disch_amp":</span>** Amplitude of daily discharge
 * **<span style="color:#009688">"Disch_phase":</span>** Phaste of daily discharge (day of year)
 * **<span style="color:#009688">"Disch_ar1":</span>** Autoregressive lag-one correlation coefficient of daily discharge
-* **<span style="color:#009688">"PAR_mean":</span>** Mean daily PAR
+* **<span style="color:#009688">"PAR_mean":</span>** Mean daily sum of incoming above canopy PAR (mol m^-2^ d^-1^)
 * **<span style="color:#009688">"PAR_cv":</span>** CV of daily PAR
 * **<span style="color:#009688">"PAR_skew":</span>** Skewness of daily PAR
 * **<span style="color:#009688">"PAR_kurt":</span>** Kurtosis of daily PAR
