@@ -19,6 +19,8 @@ This workflow is part of a series that describes the preparation of data used in
 
 * **Part III. Plotting and export of stats dataset:** Datasets from part II are minimally subsetted and recast for plotting convenience. Figures 1-6 are generated. An analysis-ready dataset is compiled.
 
+* **Part IV. Structural equation modeling:** Code used for structural equation model (SEM) analysis on annual metabolism dataset. We used an observed variables model to estimates the effect of light (PAR reaching the stream surface) and hydrologic variability (skewness of daily discharge) on annual river GPP.  
+
 <font size="5">In this document</font> 
 
 * **Preparation of standardized lotic metabolism data:** The preparation of a standardized dataset of stream metabolism available through the [StreamPULSE data portal](https://data.streampulse.org/). The metabolism data, along with ancillary data and additional model estimates, are placed into a standardized format to facilitate investigation by other researchers.
