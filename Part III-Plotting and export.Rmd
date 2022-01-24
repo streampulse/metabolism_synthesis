@@ -25,23 +25,20 @@ This workflow is part of a series that describes the preparation of data used in
 
 See code for details
 
-```{r setup, include = FALSE}
+```{r setup, message = FALSE}
 library(plyr)
 library(tidyverse)
 library(RColorBrewer)
 library(plotrix)
-library(nhdR)
 library(here)
 
 ```
 
-```{r setup2, include = FALSE}
+```{r setup2, message = FALSE}
 
 dir.create(here('figures'),
            showWarnings = FALSE)
 dir.create(here('export_datasets'),
-           showWarnings = FALSE)
-dir.create(here('output_data', 'spatial'),
            showWarnings = FALSE)
 
 #choose colors for plot categories
@@ -53,11 +50,11 @@ ercolor = 'sienna'
 source(here('plot_helpers.R'))
 ```
 
-# load site data from Part II
+# Load site data from Part II
 
 Columns Stream_PAR_sum, Disch_ar1, MOD_ann_NPP will be used in plots.
 
-```{r load site data, include = FALSE, eval = FALSE}
+```{r load site data, message = FALSE}
 
 site_data_1 = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
     as_tibble() %>%
@@ -66,11 +63,11 @@ site_data_1 = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
 
 ```
 
-# load and prepare fluxnet data
+# Load and prepare fluxnet data
 
 We're beginning from two previously generated datasets here. The first is `fluxnet_filtered_metabolism.rds`, a collection of data.frames for each terrestrial site, organized in a list. We'll cast that to one big tibble, select and rename a few columns, calculate NEP from GPP and ER, and determine a mean value for each of those metrics for each DOY, across years. The resulting dataset (summarized by site and DOY) is the basis for the "lips plots" that show median GPP, ER, and NEP (and GPP and ER ranges) over the course of an average year. For every other plot, we use a tibble that summarizes terrestrial data by site, called `fnet_site`.
 
-```{r load site data fnet, include = FALSE, eval = FALSE}
+```{r load site data fnet, message = FALSE}
 
 restricted_use_sites = c("RU-Sam", "RU-SkP", "RU-Tks", "RU-Vrk", "SE-St1", "ZA-Kru")
 
@@ -110,11 +107,11 @@ fnet_lips = fnet_full %>%
     mutate(NEP_C_filled = GPP_C_filled + ER_C_filled)
 ```
 
-# load and prepare streampulse data
+# Load and prepare streampulse data
 
 Same procedures as for FLUXNET (terrestrial) data, here applied to StreamPULSE (aquatic) data.
 
-```{r load site data sp, include = FALSE, eval = FALSE}
+```{r load site data sp, message = FALSE}
 sp_list = readRDS(here('output_data', 'lotic_gap_filled.rds'))
 
 #summarize by site
@@ -154,11 +151,11 @@ sp_lips = sp_full %>%
     left_join(site_data_1, by = 'sitecode') #include site data
 ```
 
-# split sites by coverage
+# Split sites by coverage
 
 For some plots, we use different markers to indicate sites with high coverage for metabolism estimates (>= 80% of days across years) and those with low coverage (< 80% of days). Here we create vectors of sitecodes that fit each of these criteria, and boolean vectors representing the same, to be used for subsetting later.
 
-```{r split by coverage, include = FALSE, eval = FALSE}
+```{r split by coverage, message = FALSE}
 
 coverage_sp = site_data_1 %>%
     select(sitecode, ndays, nyears, coverage)
@@ -180,113 +177,11 @@ fnet_high_cov_sites = coverage_fnet %>%
 fnet_high_cov_bool = fnet_site$sitecode %in% fnet_high_cov_sites
 ```
 
-# (skip if only plotting) generate additional site data to be used in SEM
+# Figure 1: GPP-ER biplot and dist plots
 
-Here we acquire areas and average slopes for the watersheds of each site, and the Strahler order of each stream at the site location. These data are retrieved from NHDPlusV2. Because NHD watershed areas apply to NHD reaches rather than our exact study reaches, we multiply each NHD watershed area by the distance of each site along its NHD reach (as a proportion). The subdatasets generated in this section are saved to disk, and subsequent runs will read them from disk rather than regenerating them. Functions `calc_reach_prop`, `nhdplusv2_bulk`, and `nhdplusv2_from_comid` are defined in `plot_helpers.R`.
+See code/paper for details
 
-**NOTE: we ended up using watershed areas provided by USGS for most sites (see PART-I),
-so this section became obsolete. It's still here in case somebody wants it for future
-investigations.**
-
-
-```{r addtl site data, include = FALSE, eval = FALSE}
-site_data_2 = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
-    as_tibble() %>%
-    select(sitecode = Site_ID,
-           lat = Lat,
-           lon = Lon,
-           epsg_crs, COMID, VPU)
-
-#get reach proportional distance for as many sites as possible
-got_reach_proportions <- file.exists(here('output_data', 'spatial', 'reach_proportion_reference.rds'))
-
-if(got_reach_proportions){
-    site_data_2$reach_proportion = readRDS(here('output_data', 'spatial',
-                                                'reach_proportion_reference.rds'))
-} else {
-    site_data_2$reach_proportion = NA
-    remake_reach_proportion_column = FALSE
-    errflag = FALSE
-    reach_proportions_needed = which(is.na(site_data_2$reach_proportion))
-    for(i in reach_proportions_needed){
-
-        print(paste(i, length(reach_proportions_needed), sep = '/'))
-
-        if(is.na(site_data_2$reach_proportion[i]) || remake_reach_proportion_column){
-
-            tryCatch({
-                rp = calc_reach_prop(VPU = site_data_2$VPU[i],
-                                     COMID = site_data_2$COMID[i],
-                                     lat = site_data_2$lat[i],
-                                     long = site_data_2$lon[i],
-                                     CRS = site_data_2$epsg_crs[i],
-                                     quiet = TRUE,
-                                     force_redownload = FALSE)
-            }, error = function(e) {print('error'); errflag <<- TRUE} )
-
-            if(errflag){
-                errflag = FALSE
-                site_data_2$reach_proportion[i] = NA
-                next
-            }
-
-        } else {
-            message('already got this one. set remake_reach_proportion_column = TRUE to get it again.')
-            next
-        }
-
-        site_data_2$reach_proportion[i] = rp
-    }
-
-    saveRDS(site_data_2$reach_proportion, here('output_data', 'spatial',
-                                               'reach_proportion_reference.rds'))
-}
-
-#retrieve NHDPlusV2 data (will be skipped if output_data/spatial/nhdplusv2_data.rds exists)
-
-if(! file.exists(here('output_data', 'spatial' ,'nhdplusv2_data.rds'))){
-
-    #construct list of DSN=component pairs to acquire. see NHDPlus docs for more.
-    setlist = list('NHDPlusAttributes'='PlusFlowlineVAA',
-                   'NHDPlusAttributes'='ElevSlope')
-
-    #retrieve NHDPlusV2 data
-    nhdplusv2_data = nhdplusv2_bulk(site_data_2, setlist, quiet=TRUE)
-
-    #nhd variable names do not have consistent naming conventions. sometimes they're
-    #all caps; other times camel case. here's a crude way to deal with that.
-    colnames(nhdplusv2_data) = toupper(colnames(nhdplusv2_data))
-    nhdplusv2_data = nhdplusv2_data[, ! duplicated(colnames(nhdplusv2_data))]
-
-    #choose variables to join; filter dupes
-    nhdplusv2_data = nhdplusv2_data %>%
-        as_tibble() %>%
-        select(COMID, STREAMORDE, FROMMEAS, TOMEAS,
-               SLOPE, REACHCODE, AREASQKM, TOTDASQKM, MAXELEVSMO,
-               MINELEVSMO) %>%
-        group_by(COMID) %>%
-        summarize_all(first) %>%
-        ungroup()
-
-    site_data_2 = left_join(site_data_2, nhdplusv2_data, by='COMID')
-
-    #correct catchment area (AREASQKM) based on where each site falls within its reach.
-    #use this to correct watershed area (TOTDASQKM) and to determine an areal
-    #correction factor that can be multiplied with any areal summary data.
-    site_data_2$AREASQKM_corr = round(site_data_2$AREASQKM * site_data_2$reach_proportion, 5)
-    site_data_2$TOTDASQKM_corr = site_data_2$TOTDASQKM - (site_data_2$AREASQKM - site_data_2$AREASQKM_corr)
-    site_data_2$areal_corr_factor = site_data_2$TOTDASQKM_corr / site_data_2$TOTDASQKM
-
-    #save progress
-    saveRDS(site_data_2, here('output_data', 'spatial/nhdplusv2_data.rds'))
-}
-```
-
-# (Figure 1) GPP-ER biplot and dist plots
-
-See code for details
-
-```{r fig 1, include = FALSE, eval = FALSE}
+```{r fig 1, include = FALSE}
 axis_cex = 2.4 #applies to labels and tick values
 
 jpeg(width=10, height=10, units='in', res=300, quality=100, type='cairo',
@@ -430,11 +325,11 @@ polygon(x=c(nep_dens_sp$x, rev(nep_dens_sp$x)),
 dev.off()
 ```
 
-# (Figures 2 and 3) lips plots and probability densities
+# Figures 2 and 3: lips plots and probability densities
 
-See code for details
+See code/paper for details
 
-```{r Figs 2 and 3, include = FALSE, eval = FALSE}
+```{r Figs 2 and 3, include = FALSE}
 dir.create(here('figures' ,'lips'), showWarnings = FALSE)
 dir.create(here('figures', 'lips', 'lips_cross'), showWarnings = FALSE)
 dir.create(here('figures', 'probdens'), showWarnings = FALSE)
@@ -664,11 +559,11 @@ lips_plot(quant_filt = c('Stream_PAR_sum > 0.75', 'Disch_skew < 0.25'),
           wee = TRUE)
 ```
 
-# (Figure 4) bubble plots
+# Figure 4: bubble plots
 
-See code for details
+See code/paper for details
 
-```{r fig 4, include = FALSE, eval = FALSE}
+```{r fig 4, include = FALSE}
 dir.create(here('figures', 'bubble_plots'), showWarnings = FALSE)
 
 bubble_plot = function(xvar, comp, logx=FALSE, outfile){
@@ -813,19 +708,14 @@ bubble_plot(xvar='MOD_ann_NPP', comp='NEP_site_mean', logx=TRUE,
             outfile=here('figures', 'bubble_plots', 'MODNPP_NEP_log.jpeg'))
 ```
 
-# export regression/SEM dataset
+# Export regression/SEM dataset
 
 Combine site data compiled in parts II and III with coverage metrics, export for further analyses (See section IV).
 
-```{r export statset, include = FALSE, eval = FALSE}
+```{r export statset, message = FALSE}
 site_data = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
     as_tibble() %>%
     rename(sitecode = Site_ID)
-# site_data_B = readRDS(here('output_data' ,'spatial' ,'nhdplusv2_data.rds')) %>%
-#     select(sitecode, lat, lon, stream_order = STREAMORDE, slope = SLOPE,
-#            ws_area_km2 = TOTDASQKM_corr) %>%
-#     filter(sitecode != 'nwis_05406457') #duplicate of WI_BEC
-# site_data = full_join(site_data_A, site_data_B)
 
 stats_set = site_data %>%
     right_join(coverage_sp) %>%
@@ -835,87 +725,71 @@ write.csv(stats_set, here('export_datasets' ,'streampulse_synthesis_statset.csv'
           row.names = FALSE)
 ```
 
-# (Figure X) interannual CVs
+# Figure S1: sitemap
 
-This figure may end up in the main text, an appendix, or nowhere. (jotting this here in case I forget to update after we decide what to do with figure X)
+See code/paper for details
 
-```{r Figure X, include = FALSE, eval = FALSE}
+```{r Figure S1, eval = FALSE, include = FALSE}
 
-fnet_cvs = fnet_full %>%
-    # mutate(NEP = GPP + ER) %>%
-    group_by(sitecode, Year) %>%
-    summarize(across(c(GPP, ER), sum, na.rm = TRUE)) %>%
-    filter(n() > 3) %>%
-    ungroup() %>%
-    group_by(sitecode) %>%
-    summarize(across(c(GPP, ER),
-                     ~sd(., na.rm = TRUE) / mean(., na.rm = TRUE) * 100),
-              .groups = 'drop')
+library(sf)
+library(tmap)
+library(tmaptools)
+library(OpenStreetMap) #requires rJava package (which requires local JRE, JDK installation)
 
-sp_cvs = sp_full %>%
-    rename(GPP = GPP_C_filled,
-           ER = ER_C_filled) %>%
-    # mutate(NEP = GPP + ER) %>%
-    group_by(sitecode, Year) %>%
-    summarize(across(c(GPP, ER), sum, na.rm = TRUE)) %>%
-    filter(n() > 3) %>%
-    ungroup() %>%
-    group_by(sitecode) %>%
-    summarize(across(c(GPP, ER),
-                     ~sd(., na.rm = TRUE) / mean(., na.rm = TRUE) * 100),
-              .groups = 'drop')
+sites_fnet = readRDS(here('output_data', 'fluxnet_site_info_filtered.rds')) %>%
+    as_tibble() %>%
+    select(site_code = Site_ID, Lat, Lon) %>%
+    mutate(source = 'FLUXNET') %>%
+    filter(! is.na(Lon)) %>%
+    st_as_sf(coords = c('Lon', 'Lat'),
+             remove = FALSE,
+             crs = 4326)
+    
+sites_sp = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
+    as_tibble() %>%
+    select(site_code = Site_ID, Lat, Lon) %>%
+    mutate(source = 'StreamPULSE') %>%
+    st_as_sf(coords = c('Lon', 'Lat'),
+             remove = FALSE,
+             crs = 4326)
 
-probdens2 <- function(d_sp, d_fnet, v){
+basemap = tmaptools::read_osm(sites_fnet,
+                              # ext = 1.1,
+                              relative = TRUE,
+                              ylim = c(-0.04, 1.01),
+                              xlim = c(-0.04, 1.02),
+                              type = 'nps')
 
-    dens_sp = density(na.omit(d_sp[[v]]))
-    dens_sp = tibble(x=dens_sp$x, y=dens_sp$y)
-    dens_fnet = density(na.omit(d_fnet[[v]]))
-    dens_fnet = tibble(x=dens_fnet$x, y=dens_fnet$y)
+tmap_mode('plot')
 
-    xlims = range(c(range(dens_sp$x), range(dens_fnet$x)))
+map = tm_shape(basemap) + tm_rgb() +
+    tm_shape(sites_sp) + tm_symbols(shape = 21, col = 'steelblue3', size = 0.1,
+                                    border.lwd = 0.5, border.col = 'black') +
+    tm_shape(sites_fnet) + tm_symbols(shape = 21, col = fnetcolor, size = 0.1,
+                                      border.lwd = 0.5, border.col = 'black') +
+    # tm_compass(type = 'arrow', position = c(0.1, 0.01), show.labels = 1,
+    #            size = 2, text.size = 1) +
+    # tm_style(style='white') +
+    # tm_layout(frame=TRUE, bg.color='white') +
+    tm_scale_bar(text.size = 0.6, position=c(0, 0), width = 0.2) +
+    tm_add_legend(type = 'symbol', labels = 'StreamPULSE', col = 'steelblue3',
+                  shape = 21, border.col = 'black', border.lwd = 1) +
+    tm_add_legend(type = 'symbol', labels = 'FLUXNET', col = fnetcolor,
+                  shape = 21, border.col = 'black', border.lwd = 1) +
+    tm_legend(show = TRUE, position = c(0.005, 0.09), outside = FALSE,
+              bg.color = 'gray94', frame = TRUE, text.size = 0.6,
+              between.margin = 0)
 
-    plot(dens_sp$x, dens_sp$y, type='n', ann=FALSE, yaxt='n',# xaxt='n',
-         bty='n', xlim=xlims)
-
-    # tck = c(0.1, 1, 10, 100, 1000, 10000, 100000)
-    # # ertck = rev(c(10000, 1000, 100, 10, 1, ))
-    # tck_log = log(tck)
-    # # axis(1, at=tck_log, labels=tck, cex.axis=2.4, padj=0.4)
-    # # ertck_log = log(ertck) * -1
-    # # axis(2, at=ertck_log, labels=ertck * -1, cex.axis=2.4, padj=0.2)
-    # axis(1, at=tck_log, labels=tck, padj=-1.3, tick = TRUE, line=-0.2, tcl=-0.2)
-
-    mtext(paste(v), 1, line=-15)
-    polygon(x=c(dens_fnet$x, rev(dens_fnet$x)),
-            y=c(dens_fnet$y, rep(0, nrow(dens_fnet))),
-            col=alpha(fnetcolor, alpha=0.7),
-            border=alpha(fnetcolor, alpha=0.7))
-    polygon(x=c(dens_sp$x, rev(dens_sp$x)),
-            y=c(dens_sp$y, rep(0, nrow(dens_sp))),
-            col=alpha(spcolor, alpha=0.7),
-            border=alpha(spcolor, alpha=0.7))
-}
-
-jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
-     filename=here('figures', 'interannual_CVs.jpg'))
-
-par(mfrow=c(2, 1), mar=c(2,1,1,1), oma=c(0, 0, 0, 0))
-probdens2(sp_cvs, fnet_cvs, 'GPP')
-
-# jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
-#      filename='figures/interannual_CVs/ER.jpg')
-
-# par(mfrow=c(2, 1), mar=c(2,1,1,1), oma=c(0, 0, 0, 0))
-probdens2(sp_cvs, fnet_cvs, 'ER')
-
-dev.off()
+tmap_save(map, filename = here('figures', 'sitemap.jpg'), bg = 'white',
+          dpi = 800, width = 6, units = 'in')
+          # compression = 'lzw',
 ```
 
-# (Figure Y) peak months
+# Figure S2: peak months
 
-This figure may end up in the main text, an appendix, or nowhere. (jotting this here in case I forget to update after we decide what to do with figure Y)
+See code/paper for details
 
-```{r Figure Y, include = FALSE, eval = FALSE}
+```{r Figure Y, include = FALSE}
 dir.create(here('figures', 'peak_months'), showWarnings = FALSE)
 
 library(lubridate)
@@ -1046,127 +920,4 @@ text(x=25, y=45, adj = 0, paste('n StreamPULSE =', sum(maxmonths_sp_er)))
 
 dev.off()
 
-```
-
-# (Figure Z) a few freq dists of daily Q (and corresponding hydrographs)
-
-This figure may end up in the main text, an appendix, or nowhere. (jotting this here in case I forget to update after we decide what to do with figure Z)
-
-```{r Figure Z, include = FALSE, eval = FALSE}
-
-dir.create(here('figures', 'daily_Q_freq_dists'), showWarnings = FALSE)
-
-sp_q = Reduce(bind_rows, sp_list) %>%
-    as_tibble() %>%
-    select(sitecode, Date, Year, DOY, Disch_filled)
-
-high_skew_site = sp_site %>%
-    arrange(desc(Disch_skew)) %>%
-    slice(54) %>%
-    pull(sitecode)
-high_skewness = pull(sp_site[sp_site$sitecode == high_skew_site, 'Disch_skew'])
-
-low_skew_site = sp_site %>%
-    arrange(Disch_skew) %>%
-    slice(11) %>%
-    pull(sitecode)
-low_skewness = pull(sp_site[sp_site$sitecode == low_skew_site, 'Disch_skew'])
-
-jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
-     filename=here('figures', 'daily_Q_freq_dists', 'high_skew_site.jpg'))
-hist(pull(sp_q[sp_q$sitecode == high_skew_site, 'Disch_filled']),
-     freq = TRUE,
-     breaks = 75,
-     xlab = expression('Discharge (m' ^ 3 * 's' ^ -1 * ')'),
-     las = 1,
-     main = paste0('Mean daily discharge at ', high_skew_site,
-                   ' (L-skew ratio: ', high_skewness, '; high skewness)'))
-dev.off()
-
-jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
-     filename=here('figures', 'daily_Q_freq_dists', 'high_skew_site_hydrograph.jpg'))
-plot(pull(sp_q[sp_q$sitecode == high_skew_site, 'Date']),
-     pull(sp_q[sp_q$sitecode == high_skew_site, 'Disch_filled']),
-     type = 'l',
-     xlab = 'Date', ylab = expression('Discharge (m' ^ 3 * 's' ^ -1 * ')'),
-     main = paste(high_skew_site, 'hydrograph'))
-dev.off()
-
-jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
-     filename=here('figures', 'daily_Q_freq_dists', 'low_skew_site.jpg'))
-hist(pull(sp_q[sp_q$sitecode == low_skew_site, 'Disch_filled']),
-     freq = TRUE,
-     breaks = 75,
-     xlab = expression('Discharge (m' ^ 3 * 's' ^ -1 * ')'),
-     las = 1,
-     main = paste0('Mean daily discharge at ', low_skew_site,
-                   ' (L-skew ratio: ', low_skewness, '; low skewness)'))
-dev.off()
-
-jpeg(width=8, height=8, units='in', res=300, quality=100, type='cairo',
-     filename=here('figures', 'daily_Q_freq_dists', 'low_skew_site_hydrograph.jpg'))
-plot(pull(sp_q[sp_q$sitecode == low_skew_site, 'Date']),
-     pull(sp_q[sp_q$sitecode == low_skew_site, 'Disch_filled']),
-     type = 'l',
-     xlab = 'Date', ylab = expression('Discharge (m' ^ 3 * 's' ^ -1 * ')'),
-     main = paste(low_skew_site, 'hydrograph'))
-dev.off()
-```
-
-# (Figure S1 - sitemap)
-
-```{r Figure S1, include = FALSE, eval = FALSE}
-
-library(sf)
-library(tmap)
-library(tmaptools)
-library(OpenStreetMap) #requires rJava package (which requires local JRE, JDK installation)
-
-sites_fnet = readRDS(here('output_data', 'fluxnet_site_info_filtered.rds')) %>%
-    as_tibble() %>%
-    select(site_code = Site_ID, Lat, Lon) %>%
-    mutate(source = 'FLUXNET') %>%
-    filter(! is.na(Lon)) %>%
-    st_as_sf(coords = c('Lon', 'Lat'),
-             remove = FALSE,
-             crs = 4326)
-    
-sites_sp = readRDS(here('output_data', 'lotic_site_info_filtered.rds')) %>%
-    as_tibble() %>%
-    select(site_code = Site_ID, Lat, Lon) %>%
-    mutate(source = 'StreamPULSE') %>%
-    st_as_sf(coords = c('Lon', 'Lat'),
-             remove = FALSE,
-             crs = 4326)
-
-basemap = tmaptools::read_osm(sites_fnet,
-                              # ext = 1.1,
-                              relative = TRUE,
-                              ylim = c(-0.04, 1.01),
-                              xlim = c(-0.04, 1.02),
-                              type = 'nps')
-
-tmap_mode('plot')
-
-map = tm_shape(basemap) + tm_rgb() +
-    tm_shape(sites_sp) + tm_symbols(shape = 21, col = 'steelblue3', size = 0.1,
-                                    border.lwd = 0.5, border.col = 'black') +
-    tm_shape(sites_fnet) + tm_symbols(shape = 21, col = fnetcolor, size = 0.1,
-                                      border.lwd = 0.5, border.col = 'black') +
-    # tm_compass(type = 'arrow', position = c(0.1, 0.01), show.labels = 1,
-    #            size = 2, text.size = 1) +
-    # tm_style(style='white') +
-    # tm_layout(frame=TRUE, bg.color='white') +
-    tm_scale_bar(text.size = 0.6, position=c(0, 0), width = 0.2) +
-    tm_add_legend(type = 'symbol', labels = 'StreamPULSE', col = 'steelblue3',
-                  shape = 21, border.col = 'black', border.lwd = 1) +
-    tm_add_legend(type = 'symbol', labels = 'FLUXNET', col = fnetcolor,
-                  shape = 21, border.col = 'black', border.lwd = 1) +
-    tm_legend(show = TRUE, position = c(0.005, 0.09), outside = FALSE,
-              bg.color = 'gray94', frame = TRUE, text.size = 0.6,
-              between.margin = 0)
-
-tmap_save(map, filename = here('figures', 'sitemap.jpg'), bg = 'white',
-          dpi = 800, width = 6, units = 'in')
-          # compression = 'lzw',
 ```
