@@ -11,7 +11,7 @@ knit: (function(inputFile, encoding) {
 
 <font size="5">Summary of major workflow components</font> 
 
-This workflow is part of a series that describes the preparation of data used in Bernhardt et al. (2022). The creation of this dataset consists of several sub workflows as described below.
+This workflow is part of a series that describes the preparation of data used in [Bernhardt et al. (2022)](https://doi.org/10.1073/pnas.2121976119). The creation of this dataset consists of several sub workflows as described below.
 
 * **Part I: Standardized dataset creation:** Part I is the preparation of standardized datasets of stream metabolism from the [StreamPULSE data portal](https://data.streampulse.org/) and terrestrial ecosystem fluxes from the [FLUXNET2015 dataset](https://fluxnet.org/data/fluxnet2015-dataset/). Everything generated in Part I is included in `output_data` so that other users could use this larger dataset if they choose to work with a different subset of data than we used.
 

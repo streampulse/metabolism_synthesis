@@ -1,10 +1,12 @@
 <font size="6">Summary of files in this repository </font> 
 
-This repository contains data and code used in Bernhardt et al. (2022). The preparation of this dataset consisted of a three part workflow:
+This repository contains data and code used in [Bernhardt et al. (2022)](https://doi.org/10.1073/pnas.2121976119). The preparation and analysis of this dataset consisted of a four part workflow:
 
-* **Part I: Standardized dataset creation:** Part I is the preparation of standardized datasets of stream metabolism from the [StreamPULSE data portal](https://data.streampulse.org/) and terrestrial ecosystem fluxes from the [FLUXNET2015 dataset](https://fluxnet.org/data/fluxnet2015-dataset/). 
+* **Part I: Standardized dataset creation:** Part I is the preparation of standardized datasets of stream metabolism from the [StreamPULSE data portal](https://data.streampulse.org/) and terrestrial ecosystem fluxes from the [FLUXNET2015 dataset](https://fluxnet.org/data/fluxnet2015-dataset/). Everything generated in Part I is included in `output_data` so that other users could use this larger dataset if they choose to work with a different subset of data than we used.
 * **Part II. Filtering, gap-filling, and calculating metrics:** In Part II the standardized dataset of lotic and terrestrial metabolism data was filtered down to the subset of sites used in Bernhardt et al. (2022). After filtering, additional descriptive metrics were calculated to use in analysis.
-* **Part III. Analysis:** In Part III Datasets from part II are minimally subsetted and recast for plotting convenience. Figures 1-6 are generated. An analysis-ready dataset is compiled.
+* **Part III. Plotting and export of stats dataset:** Datasets from part II are minimally subsetted and recast for plotting convenience. Figures 1-6 are generated. An analysis-ready dataset is compiled.
+* **Part IV. Structural equation modeling:** Code used for structural equation model (SEM) analysis on annual metabolism dataset. We used an observed variables model to estimates the effect of light (PAR reaching the stream surface) and hydrologic variability (skewness of daily discharge) on annual river GPP. bles model to estimates the effect of light (PAR reaching the stream surface) and hydrologic variability (skewness of daily discharge) on annual river GPP.  
+
 
 <font size="4">The repository contains: </font> 
 -  A documentation of each parts of the workflow, located in the documentation folder of this repository. The original R markdown files are also included in the root directory of the repository.
